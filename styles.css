@@ -485,6 +485,32 @@ main, section, header, footer { position: relative; z-index: 3; }
   gap: 8px;
 }
 .field--wide { max-width: 360px; }
+.field--question {
+  max-width: 520px;
+  width: 100%;
+}
+.field--question textarea {
+  background: rgba(11, 13, 16, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--paper);
+  font-family: var(--font-cn-body);
+  font-size: 16px;
+  padding: 14px 16px;
+  outline: none;
+  transition: border-color 0.3s, background 0.3s;
+  letter-spacing: 0.05em;
+  resize: none;
+  line-height: 1.7;
+}
+.field--question textarea:focus {
+  border-color: var(--gold);
+  background: rgba(26, 30, 38, 0.8);
+}
+.field--question textarea::placeholder {
+  color: var(--bone-mute);
+  opacity: 0.5;
+}
 .field__label {
   font-family: var(--font-cn-display);
   font-size: 16px;
@@ -685,9 +711,65 @@ main, section, header, footer { position: relative; z-index: 3; }
 .status-line.is-error { color: var(--vermilion-bright); }
 .status-line.is-ready  { color: var(--gold); }
 
+.question-preview {
+  font-size: 15px;
+  color: var(--bone-soft);
+  letter-spacing: 0.05em;
+  margin: 16px 0 24px;
+  padding: 10px 14px;
+  background: rgba(200, 169, 106, 0.05);
+  border-left: 2px solid var(--gold);
+}
+.preview-label {
+  color: var(--gold);
+  font-weight: 500;
+  margin-right: 8px;
+}
+.preview-text {
+  color: var(--paper);
+}
+
+.back-row {
+  margin-top: 14px;
+  text-align: center;
+}
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--bone-mute);
+  font-family: var(--font-cn-body);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  padding: 6px 12px;
+  transition: color 0.3s;
+}
+.back-btn:hover {
+  color: var(--gold);
+}
+
 /* =========================================================
    Result
    ========================================================= */
+
+.question-display {
+  font-size: 15.5px;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+  margin: 0 0 32px;
+  padding: 14px 18px;
+  background: rgba(200, 169, 106, 0.06);
+  border: 1px solid var(--line);
+  display: inline-block;
+}
+.display-label {
+  font-weight: 500;
+  margin-right: 10px;
+}
+.display-text {
+  color: var(--paper);
+  font-weight: 300;
+}
 .result {
   max-width: var(--maxw);
   margin: 0 auto;

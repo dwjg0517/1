@@ -1088,6 +1088,10 @@ function toChineseNum(n) {
 
 function renderReading(reading) {
   currentReading = reading;
+
+  // Question display
+  document.getElementById('display-text').textContent = state.question || '未有具體所問';
+
   // Hexagrams
   renderHexagram(document.getElementById('draw-ben'),  reading.lines, reading.moving);
   // Mutual: re-derive its trigram numbers from the original lines (no moving yao on 互卦)
@@ -1127,6 +1131,22 @@ function renderReading(reading) {
   const result = document.getElementById('result');
   result.hidden = false;
   result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Trigger AI analysis
+  triggerAIAnalysis();
+}
+
+function triggerAIAnalysis() {
+  if (!hasAIConfig()) return;
+  const aiPanel = document.getElementById('oracle');
+  if (aiPanel) aiPanel.hidden = false;
+  callAI(currentReading, state.question, (text) => {
+    const elem = document.getElementById('oracle-text');
+    if (elem) elem.textContent = text;
+  }).catch(() => {
+    const elem = document.getElementById('oracle-text');
+    if (elem) elem.textContent = 'AI 解讀暫不可用，請查看下方卦象分析。';
+  });
 }
 
 function yaoNameFor(pos, isYang) {
@@ -1140,7 +1160,7 @@ function yaoNameFor(pos, isYang) {
 /* ---------------------------------------------------------
    12. UI wiring
    --------------------------------------------------------- */
-const state = { method: 'time', ready: false };
+const state = { method: 'time', ready: false, question: '' };
 
 document.addEventListener('DOMContentLoaded', () => {
   initPetals();
@@ -1151,9 +1171,41 @@ document.addEventListener('DOMContentLoaded', () => {
   initRandomOracle();
   initRecastButton();
   initOracle();
+  initQuestionFlow();
   // Pre-fill time fields with current time
   fillCurrentTime();
 });
+
+/* --- Question flow --- */
+function initQuestionFlow() {
+  const btnNext = document.getElementById('btn-next');
+  const btnBack = document.getElementById('btn-back');
+  const input = document.getElementById('question-input');
+  const qStage = document.getElementById('question-stage');
+  const cStage = document.getElementById('casting-stage');
+  const preview = document.getElementById('preview-text');
+
+  btnNext.addEventListener('click', () => {
+    const q = input.value.trim();
+    if (!q) {
+      setStatus('請先明言所問之事。', true);
+      return;
+    }
+    state.question = q;
+    preview.textContent = q;
+    qStage.hidden = true;
+    cStage.hidden = false;
+    setStatus('所問已明，請擇一法起卦。');
+    fillCurrentTime();
+  });
+
+  btnBack.addEventListener('click', () => {
+    cStage.hidden = true;
+    qStage.hidden = false;
+    input.value = state.question;
+    setStatus('請先明言所問之事，心誠則靈。');
+  });
+}
 
 /* --- Petals --- */
 function initPetals() {

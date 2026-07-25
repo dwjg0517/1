@@ -55,35 +55,63 @@
 
   <div class="panel-header">
     <span class="panel-header__num">壹</span>
-    <h2>設數起卦</h2>
-    <span class="panel-header__en">Cast the Hexagram</span>
+    <h2>先問所事</h2>
+    <span class="panel-header__en">State Your Question</span>
   </div>
 
-  <!-- 方法切換 -->
-  <div class="method-tabs" role="tablist">
-    <button class="method-tab is-active" role="tab" data-method="time">
-      <span class="method-tab__cn">時起</span>
-      <span class="method-tab__en">By Time</span>
-    </button>
-    <button class="method-tab" role="tab" data-method="number">
-      <span class="method-tab__cn">數起</span>
-      <span class="method-tab__en">By Number</span>
-    </button>
-    <button class="method-tab" role="tab" data-method="word">
-      <span class="method-tab__cn">字起</span>
-      <span class="method-tab__en">By Word</span>
-    </button>
-    <button class="method-tab" role="tab" data-method="random">
-      <span class="method-tab__cn">機起</span>
-      <span class="method-tab__en">By Chance</span>
+  <!-- 问事输入 -->
+  <div class="question-stage" id="question-stage">
+    <p class="input-hint">《易》曰：「君子居則觀其象而玩其辭，動則觀其變而玩其占。」<br/>請先明言所問之事，心誠則靈。</p>
+    <label class="field field--wide field--question">
+      <span class="field__label">所問之事</span>
+      <textarea id="question-input" rows="2" maxlength="100" placeholder="如：求官、謀財、問病、遠行、婚姻、失物……"></textarea>
+      <span class="field__hint">請簡述所問，不超過一百字</span>
+    </label>
+    <button class="cast-btn" id="btn-next">
+      <span class="cast-btn__ink"></span>
+      <span class="cast-btn__text">明確所問</span>
     </button>
   </div>
 
-  <!-- 输入面板 -->
-  <div class="input-stage">
+  <!-- 起卦步骤 -->
+  <div class="casting-stage" id="casting-stage" hidden>
 
-    <!-- 时起 -->
-    <div class="input-panel is-active" data-panel="time">
+    <div class="panel-header panel-header--compact">
+      <span class="panel-header__num">貳</span>
+      <h2>設數起卦</h2>
+      <span class="panel-header__en">Cast the Hexagram</span>
+    </div>
+
+    <p class="question-preview" id="question-preview">
+      <span class="preview-label">所問：</span>
+      <span class="preview-text" id="preview-text">—</span>
+    </p>
+
+    <!-- 方法切換 -->
+    <div class="method-tabs" role="tablist">
+      <button class="method-tab is-active" role="tab" data-method="time">
+        <span class="method-tab__cn">時起</span>
+        <span class="method-tab__en">By Time</span>
+      </button>
+      <button class="method-tab" role="tab" data-method="number">
+        <span class="method-tab__cn">數起</span>
+        <span class="method-tab__en">By Number</span>
+      </button>
+      <button class="method-tab" role="tab" data-method="word">
+        <span class="method-tab__cn">字起</span>
+        <span class="method-tab__en">By Word</span>
+      </button>
+      <button class="method-tab" role="tab" data-method="random">
+        <span class="method-tab__cn">機起</span>
+        <span class="method-tab__en">By Chance</span>
+      </button>
+    </div>
+
+    <!-- 输入面板 -->
+    <div class="input-stage">
+
+      <!-- 时起 -->
+      <div class="input-panel is-active" data-panel="time">
       <p class="input-hint">取當下年月日時（農曆為正，此處用公曆近似）之數，合而成卦。</p>
       <div class="field-grid">
         <label class="field">
@@ -171,8 +199,15 @@
     </button>
   </div>
 
+  <!-- 返回按钮 -->
+  <div class="back-row">
+    <button class="back-btn" id="btn-back">返回修改所問</button>
+  </div>
+
   <!-- 状态/说明 -->
   <p class="status-line" id="status-line">擇一法以起卦，心念專一，方有所應。</p>
+
+  </div> <!-- 结束 casting-stage -->
 
 </main>
 
@@ -180,9 +215,15 @@
 <section class="result" id="result" hidden>
 
   <div class="panel-header panel-header--alt">
-    <span class="panel-header__num">貳</span>
+    <span class="panel-header__num">叁</span>
     <h2>觀象斷吉凶</h2>
     <span class="panel-header__en">Read the Signs</span>
+  </div>
+
+  <!-- 所问之事展示 -->
+  <div class="question-display" id="question-display">
+    <span class="display-label">所問：</span>
+    <span class="display-text" id="display-text">—</span>
   </div>
 
   <!-- 三卦横排 -->
