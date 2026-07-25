@@ -582,6 +582,713 @@ function overallAdvice(ben, bian, ausp) {
 }
 
 /* ---------------------------------------------------------
+   过三关：应期、方位、人物（梅花易数核心技法）
+   --------------------------------------------------------- */
+const SEASON_MAP = {
+  '木': { season: '春', months: ['正月', '二月', '三月'], days: ['甲寅', '乙卯', '戊寅', '己卯'], hours: ['寅時', '卯時'] },
+  '火': { season: '夏', months: ['四月', '五月', '六月'], days: ['丙午', '丁巳', '戊午', '己巳'], hours: ['巳時', '午時'] },
+  '土': { season: '四季', months: ['三月', '六月', '九月', '十二月'], days: ['戊辰', '己丑', '戊戌', '己未'], hours: ['辰時', '戌時'] },
+  '金': { season: '秋', months: ['七月', '八月', '九月'], days: ['庚申', '辛酉', '壬寅', '癸卯'], hours: ['申時', '酉時'] },
+  '水': { season: '冬', months: ['十月', '十一月', '十二月'], days: ['壬子', '癸亥', '丙子', '丁丑'], hours: ['子時', '亥時'] },
+};
+
+const DIRECTION_MAP = {
+  '木': { main: '東方', sub: ['東南', '東北'], position: '甲乙木位', geomancy: '青龍方' },
+  '火': { main: '南方', sub: ['東南', '西南'], position: '丙丁火位', geomancy: '朱雀方' },
+  '土': { main: '中央', sub: ['西南', '東北'], position: '戊己土位', geomancy: '勾陳方' },
+  '金': { main: '西方', sub: ['西北', '西南'], position: '庚辛金位', geomancy: '白虎方' },
+  '水': { main: '北方', sub: ['西北', '東北'], position: '壬癸水位', geomancy: '玄武方' },
+};
+
+const TRIGRAM_DIRECTION = {
+  '乾': { direction: '西北', description: '天門之位，貴人所居' },
+  '坤': { direction: '西南', description: '地戶之位，母德所在' },
+  '震': { direction: '東方', description: '雷門之位，長男之居' },
+  '巽': { direction: '東南', description: '風門之位，長女之居' },
+  '坎': { direction: '北方', description: '水府之位，中男之居' },
+  '離': { direction: '南方', description: '火府之位，中女之居' },
+  '艮': { direction: '東北', description: '山門之位，少男之居' },
+  '兌': { direction: '西方', description: '澤門之位，少女之居' },
+};
+
+const PERSON_MAP = {
+  '乾': {
+    role: '長者、領導、父親、貴人、上司',
+    personality: '剛健果斷、權威自信、性格豪爽、決策力強',
+    appearance: '身材高大、面方耳大、聲音洪亮',
+    strategy: '恭敬禮遇，以誠相待，可獲重用',
+    warning: '不可冒犯其威嚴，忌輕浮',
+  },
+  '坤': {
+    role: '母親、婦人、下屬、群眾、順從者',
+    personality: '溫柔敦厚、勤儉持家、性格穩重、善於忍耐',
+    appearance: '體態豐滿、面色黃潤、聲音柔和',
+    strategy: '以柔克剛，體恤關懷，可得擁護',
+    warning: '忌過度壓迫，宜以仁相待',
+  },
+  '震': {
+    role: '長男、青年、運動員、行動派',
+    personality: '積極進取、性格急躁、敢於嘗試、充滿活力',
+    appearance: '身材修長、面色紅潤、眼神靈動',
+    strategy: '給予機會，包容失誤，可成助力',
+    warning: '忌過度約束，宜疏不宜堵',
+  },
+  '巽': {
+    role: '長女、智謀者、文職人員、能言善辯者',
+    personality: '聰明靈活、善於溝通、心思細膩、適應力強',
+    appearance: '眉清目秀、面色青潤、言語流暢',
+    strategy: '尊重其見解，聽取建議，可獲智謀',
+    warning: '忌過度懷疑，宜信而用之',
+  },
+  '坎': {
+    role: '中男、學者、旅行者、漂泊者',
+    personality: '聰慧深沉、內心矛盾、性格隱忍、善於謀劃',
+    appearance: '面黑耳聾、眼神深邃、言語謹慎',
+    strategy: '給予安全感，真誠相待，可獲忠誠',
+    warning: '忌過度逼迫，宜緩不宜急',
+  },
+  '離': {
+    role: '中女、藝術家、熱情者、顯赫者',
+    personality: '光明熱情、性格外向、善於表達、追求美麗',
+    appearance: '面色紅潤、儀表堂堂、光彩照人',
+    strategy: '欣賞其才華，給予舞台，可獲助力',
+    warning: '忌過度冷落，宜熱情回應',
+  },
+  '艮': {
+    role: '少男、靜守者、穩重之人、保守者',
+    personality: '穩重堅守、性格內向、謹慎小心、不善變通',
+    appearance: '身材結實、面色黃潤、言語遲緩',
+    strategy: '給予時間，耐心引導，可獲忠誠',
+    warning: '忌強迫改變，宜循序漸進',
+  },
+  '兌': {
+    role: '少女、說客、和事佬、口才之人',
+    personality: '和善親切、性格開朗、善於交際、追求快樂',
+    appearance: '面白唇紅、笑容可掬、聲音悅耳',
+    strategy: '真誠交友，平等相待，可獲歡心',
+    warning: '忌過度猜忌，宜寬容大度',
+  },
+};
+
+function calculateThreePasses(reading) {
+  const { benNum, bianNum, tiTri, yongTri, rel, moving } = reading;
+  
+  const tiElem = tiTri.elem;
+  const yongElem = yongTri.elem;
+  
+  let yingqi = {
+    summary: '',
+    detail: '',
+    timing: '',
+    periods: [],
+  };
+  
+  let direction = {
+    summary: '',
+    detail: '',
+    lucky: [],
+    avoid: [],
+  };
+  
+  let person = {
+    summary: '',
+    detail: '',
+    role: '',
+    personality: '',
+    strategy: '',
+    warning: '',
+  };
+  
+  if (rel.type === 'yongShengTi') {
+    const ys = SEASON_MAP[yongElem];
+    yingqi.summary = `${ys.season}得生助，事易成`;
+    yingqi.detail = `${ys.season}（${ys.months.join('、')}）為應期，逢${ys.days.join('、')}之日更佳，${ys.hours.join('、')}行事最為有利`;
+    yingqi.timing = `最佳應期：${ys.months[0]}至${ys.months[ys.months.length-1]}，如逢${ys.days[0]}日${ys.hours[0]}起手，事半功倍`;
+    yingqi.periods = ys.months;
+    
+    const yd = DIRECTION_MAP[yongElem];
+    direction.summary = `宜向${yd.main}，可得助力`;
+    direction.detail = `主吉方：${yd.main}（${yd.geomancy}）；次吉方：${yd.sub.join('、')}；自身穩固方：${DIRECTION_MAP[tiElem].main}`;
+    direction.lucky = [yd.main, ...yd.sub];
+    direction.avoid = [];
+    
+    const yp = PERSON_MAP[yongTri.name];
+    person.summary = `得${yp.role}相助`;
+    person.detail = `此人性情${yp.personality}，相貌${yp.appearance}，對你有助益`;
+    person.role = yp.role;
+    person.personality = yp.personality;
+    person.strategy = yp.strategy;
+    person.warning = '';
+    
+  } else if (rel.type === 'tiKeYong') {
+    const ts = SEASON_MAP[tiElem];
+    yingqi.summary = `${ts.season}克制用卦，事可成`;
+    yingqi.detail = `${ts.season}（${ts.months.join('、')}）克制用卦最為有利，逢${ts.days.join('、')}之日可主動出擊，${ts.hours.join('、')}時機最佳`;
+    yingqi.timing = `宜在${ts.months[0]}至${ts.months[ts.months.length-1]}期間積極行動，${ts.hours[0]}行事可壓制對方`;
+    yingqi.periods = ts.months;
+    
+    const td = DIRECTION_MAP[tiElem];
+    const yd = DIRECTION_MAP[yongElem];
+    direction.summary = `宜向${td.main}，增強克制之力`;
+    direction.detail = `主攻方：${td.main}（${td.geomancy}）；不宜：${yd.main}，恐遭反制`;
+    direction.lucky = [td.main, ...td.sub];
+    direction.avoid = [yd.main];
+    
+    const yp = PERSON_MAP[yongTri.name];
+    person.summary = `可制${yp.role}`;
+    person.detail = `此人性情${yp.personality}，你可與之抗衡，但須自身強健`;
+    person.role = yp.role;
+    person.personality = yp.personality;
+    person.strategy = '須自身剛健，不畏強勢，以正克邪';
+    person.warning = '不可輕敵，宜謹慎應對';
+    
+  } else if (rel.type === 'yongKeTi') {
+    const ts = SEASON_MAP[tiElem];
+    yingqi.summary = `${ts.season}或逢克制用卦之時，方有轉機`;
+    yingqi.detail = `用卦剋體，當前不利。宜靜守待時，待${ts.season}（${ts.months.join('、')}）體卦得勢，或逢克制用卦之時（${SEASON_MAP[ELEM_CTRL[yongElem]]?.season || '待觀'}）方有轉機`;
+    yingqi.timing = `宜退不宜進，待${ts.months[0]}後再圖進取`;
+    yingqi.periods = ts.months;
+    
+    const td = DIRECTION_MAP[tiElem];
+    const yd = DIRECTION_MAP[yongElem];
+    direction.summary = `宜向${td.main}，自保為先`;
+    direction.detail = `避凶方：${td.main}，增強自身氣運；忌：${yd.main}，恐遭其害`;
+    direction.lucky = [td.main, ...td.sub];
+    direction.avoid = [yd.main];
+    
+    const yp = PERSON_MAP[yongTri.name];
+    person.summary = `需防${yp.role}之阻`;
+    person.detail = `此人性情${yp.personality}，可能成為阻礙，需謹慎應對`;
+    person.role = yp.role;
+    person.personality = yp.personality;
+    person.strategy = yp.warning;
+    person.warning = '不可輕易相信，宜保持距離';
+    
+  } else if (rel.type === 'tiShengYong') {
+    const ys = SEASON_MAP[yongElem];
+    yingqi.summary = `${ys.season}耗盡之後，方得休養`;
+    yingqi.detail = `體生用者，元氣外泄，需付出代價。${ys.season}（${ys.months.join('、')}）耗盡之後方可休養，逢${SEASON_MAP[tiElem].days.join('、')}之日可補充元氣`;
+    yingqi.timing = `前期需多付出，${ys.months[ys.months.length-1]}後漸入佳境`;
+    yingqi.periods = ys.months;
+    
+    const td = DIRECTION_MAP[tiElem];
+    direction.summary = `宜向${td.main}，補充元氣`;
+    direction.detail = `休養方：${td.main}（${td.geomancy}）；耗散方：${DIRECTION_MAP[yongElem].main}，宜少往`;
+    direction.lucky = [td.main, ...td.sub];
+    direction.avoid = [DIRECTION_MAP[yongElem].main];
+    
+    const yp = PERSON_MAP[yongTri.name];
+    person.summary = `需施予${yp.role}`;
+    person.detail = `此人性情${yp.personality}，你需付出方能維繫關係`;
+    person.role = yp.role;
+    person.personality = yp.personality;
+    person.strategy = '量力而行，不可過度付出';
+    person.warning = '恐有損耗，宜適可而止';
+    
+  } else {
+    const ts = SEASON_MAP[tiElem];
+    yingqi.summary = `${ts.season}或逢相合之時，事可順遂`;
+    yingqi.detail = `體用比和，事多順遂。${ts.season}（${ts.months.join('、')}）為旺相之時，逢${ts.days.join('、')}之日更為有利`;
+    yingqi.timing = `${ts.months[0]}至${ts.months[ts.months.length-1]}期間最為順利`;
+    yingqi.periods = ts.months;
+    
+    const td = DIRECTION_MAP[tiElem];
+    direction.summary = `四方皆吉，${td.main}最佳`;
+    direction.detail = `主吉方：${td.main}（${td.geomancy}）；亦可${DIRECTION_MAP[yongElem].main}，得同類相助`;
+    direction.lucky = [td.main, DIRECTION_MAP[yongElem].main];
+    direction.avoid = [];
+    
+    const yp = PERSON_MAP[yongTri.name];
+    person.summary = `得同類相助`;
+    person.detail = `與性格${tiTri.nature}之人相處融洽，彼此互助`;
+    person.role = '同類之人';
+    person.personality = tiTri.nature;
+    person.strategy = '真誠相待，平等互惠';
+    person.warning = '';
+  }
+  
+  return { yingqi, direction, person };
+}
+
+function classifyQuestion(question) {
+  if (!question) return 'general';
+  const q = question.toLowerCase();
+  if (q.includes('事业') || q.includes('工作') || q.includes('官') || q.includes('职场')) return 'career';
+  if (q.includes('感情') || q.includes('婚姻') || q.includes('爱情') || q.includes('婚') || q.includes('恋')) return 'love';
+  if (q.includes('财') || q.includes('钱') || q.includes('投资') || q.includes('生意')) return 'wealth';
+  if (q.includes('病') || q.includes('健康') || q.includes('身体')) return 'health';
+  if (q.includes('出行') || q.includes('旅游') || q.includes('走') || q.includes('远')) return 'travel';
+  if (q.includes('失物') || q.includes('找') || q.includes('丢')) return 'lost';
+  if (q.includes('考试') || q.includes('学') || q.includes('考')) return 'study';
+  return 'general';
+}
+
+function getQuestionTypeLabel(type) {
+  const labels = {
+    career: '事業求官',
+    love: '婚姻感情',
+    wealth: '財運謀利',
+    health: '病疾健康',
+    travel: '出行遠行',
+    lost: '尋物找人',
+    study: '考試求學',
+    general: '雜事諸問',
+  };
+  return labels[type] || '雜事諸問';
+}
+
+function targetedAnalysis(reading, questionType) {
+  const { ben, bian, tiTri, yongTri, rel, moving, benNum } = reading;
+  const analysis = {};
+  
+  const templates = {
+    career: {
+      high: {
+        text: `事業大吉，上級欣賞，同事相助。本卦${ben.full}主${describeHexagram(benNum)}，正是建功立業之時。`,
+        advice: [
+          '主動爭取新項目或升職機會，把握良機',
+          '多與上司溝通，展示你的能力和想法',
+          '拓展人脈，建立良好的職業形象',
+        ],
+        options: [
+          { label: '積極進取', desc: '立即申請升職或轉崗，把握當前機會' },
+          { label: '穩中求進', desc: '先鞏固現有業績，等待更佳時機' },
+          { label: '結交貴人', desc: '主動與資深同事或領導建立聯繫' },
+        ],
+      },
+      mid: {
+        text: `事業平穩，無大起大落。宜穩紮穩打，積累實力。`,
+        advice: [
+          '專注於當前工作，提升專業技能',
+          '與同事保持良好關係，積累人脈',
+          '耐心等待，不要急於求成',
+        ],
+        options: [
+          { label: '穩固根基', desc: '專注提升技能，等待機會' },
+          { label: '拓展視野', desc: '學習新技能，為將來鋪路' },
+          { label: '保持現狀', desc: '維持現有狀態，觀察形勢變化' },
+        ],
+      },
+      low: {
+        text: `事業受阻，上司壓力，同事掣肘。宜收斂鋒芒，低調行事。`,
+        advice: [
+          '謹慎行事，避免與人發生衝突',
+          '提升自身能力，等待轉機',
+          '考慮內部調崗或外部機會',
+        ],
+        options: [
+          { label: '收斂避鋒', desc: '低調行事，避免成為眾矢之的' },
+          { label: '尋求調整', desc: '申請調崗或轉換部門' },
+          { label: '蓄勢待發', desc: '加強學習，為將來跳槽做準備' },
+        ],
+      },
+      bad: {
+        text: `事業大凶，官非口舌，職位動搖。宜守不宜進，謹慎應對。`,
+        advice: [
+          '保持謹慎，避免做出重大決定',
+          '與上司保持良好溝通，化解誤會',
+          '考慮暫時離開或調整工作環境',
+        ],
+        options: [
+          { label: '退守自保', desc: '減少外出，避免爭執，保住現有職位' },
+          { label: '尋求調解', desc: '找第三方調解，化解矛盾' },
+          { label: '另謀出路', desc: '開始尋找新的工作機會' },
+        ],
+      },
+    },
+    love: {
+      high: {
+        text: `感情大吉，兩情相悅，緣分深厚。本卦${ben.full}主${describeHexagram(benNum)}，正是成婚之時。`,
+        advice: [
+          '大膽表白或求婚，把握良機',
+          '多花時間陪伴對方，加深感情',
+          '考慮進一步發展關係',
+        ],
+        options: [
+          { label: '主動表白', desc: '大膽表白心意，開啟新階段' },
+          { label: '穩步發展', desc: '保持現狀，細水長流培養感情' },
+          { label: '見家長', desc: '安排雙方父母見面，商談婚事' },
+        ],
+      },
+      mid: {
+        text: `感情平穩，不急不躁。宜細水長流，培養感情。`,
+        advice: [
+          '多溝通，了解對方需求',
+          '保持適當距離，給彼此空間',
+          '共同參加活動，增加互動',
+        ],
+        options: [
+          { label: '溫情陪伴', desc: '多花時間相處，培養默契' },
+          { label: '保持距離', desc: '給對方空間，避免過度糾纏' },
+          { label: '共同成長', desc: '一起學習或旅行，增進感情' },
+        ],
+      },
+      low: {
+        text: `感情受阻，爭吵不和，第三者介入。宜冷靜溝通，化解誤會。`,
+        advice: [
+          '冷靜處理爭吵，避免惡言相向',
+          '與對方坦誠溝通，了解問題所在',
+          '考慮是否值得繼續這段關係',
+        ],
+        options: [
+          { label: '主動溝通', desc: '找機會與對方談心，化解矛盾' },
+          { label: '冷處理', desc: '暫時冷靜一段時間，再做決定' },
+          { label: '重新考量', desc: '認真思考這段關係是否適合自己' },
+        ],
+      },
+      bad: {
+        text: `感情大凶，緣分已盡，分手之兆。宜好聚好散，保留尊嚴。`,
+        advice: [
+          '接受現實，不要過度糾纏',
+          '保護自己，避免傷害',
+          '調整心態，重新出發',
+        ],
+        options: [
+          { label: '好聚好散', desc: '平和分手，保留彼此尊嚴' },
+          { label: '冷靜分開', desc: '暫時切斷聯繫，各自冷靜' },
+          { label: '自我修復', desc: '專注自我提升，等待新緣分' },
+        ],
+      },
+    },
+    wealth: {
+      high: {
+        text: `財運大吉，投資獲利，生意興隆。本卦${ben.full}主${describeHexagram(benNum)}，正是發財之時。`,
+        advice: [
+          '果斷投資，把握良機',
+          '擴大生意規模',
+          '謹慎理財，規劃收支',
+        ],
+        options: [
+          { label: '積極投資', desc: '把握機會進行投資或擴張' },
+          { label: '穩健經營', desc: '保持現有收益，穩步發展' },
+          { label: '儲蓄備用', desc: '將部分利潤儲蓄，應對不測' },
+        ],
+      },
+      mid: {
+        text: `財運平穩，收支平衡。宜節儉持家，量入為出。`,
+        advice: [
+          '制定預算，控制開支',
+          '選擇穩健的投資方式',
+          '增加被動收入來源',
+        ],
+        options: [
+          { label: '穩健理財', desc: '選擇低風險投資，穩步積累' },
+          { label: '節約開支', desc: '減少不必要的消費' },
+          { label: '增加收入', desc: '考慮副業或兼職增加收入' },
+        ],
+      },
+      low: {
+        text: `財運受阻，投資虧損，生意蕭條。宜收緊銀根，減少開支。`,
+        advice: [
+          '停止投資，保住本金',
+          '減少開支，度過難關',
+          '尋求新的收入來源',
+        ],
+        options: [
+          { label: '收緊銀根', desc: '減少開支，保存現金' },
+          { label: '及時止損', desc: '停止虧損的投資項目' },
+          { label: '另謀出路', desc: '開闢新的賺錢途徑' },
+        ],
+      },
+      bad: {
+        text: `財運大凶，破財之兆，債務纏身。宜守財為上，避免借貸。`,
+        advice: [
+          '避免任何投資或借貸',
+          '儘快償還債務',
+          '尋求財務諮詢',
+        ],
+        options: [
+          { label: '緊急償債', desc: '優先償還高息債務' },
+          { label: '申請保護', desc: '考慮債務重組或破產保護' },
+          { label: '重新規劃', desc: '制定嚴格的預算和還款計劃' },
+        ],
+      },
+    },
+    health: {
+      high: {
+        text: `健康大吉，身體康泰，無病無災。本卦${ben.full}主${describeHexagram(benNum)}，正是養生之時。`,
+        advice: [
+          '保持良好的生活習慣',
+          '適當運動，增強體質',
+          '定期體檢，防患未然',
+        ],
+        options: [
+          { label: '積極養生', desc: '堅持運動和健康飲食' },
+          { label: '定期檢查', desc: '進行全面體檢，確保健康' },
+          { label: '放鬆身心', desc: '適當休閒，保持心情愉快' },
+        ],
+      },
+      mid: {
+        text: `健康平穩，小恙無妨。宜注意休息，飲食均衡。`,
+        advice: [
+          '注意休息，避免過度勞累',
+          '飲食均衡，營養攝取',
+          '適當運動，增強免疫力',
+        ],
+        options: [
+          { label: '調整作息', desc: '保證充足睡眠，養精蓄銳' },
+          { label: '飲食調理', desc: '注意飲食均衡，補充營養' },
+          { label: '輕度鍛煉', desc: '進行散步等輕度運動' },
+        ],
+      },
+      low: {
+        text: `健康受阻，體力下降，小毛病不斷。宜加強鍛煉，調整作息。`,
+        advice: [
+          '減輕工作壓力，注意休息',
+          '加強鍛煉，增強體質',
+          '如有不適，及時就醫',
+        ],
+        options: [
+          { label: '休養調整', desc: '減少工作量，專心調養' },
+          { label: '及時檢查', desc: '去醫院進行詳細檢查' },
+          { label: '改變習慣', desc: '調整飲食和作息習慣' },
+        ],
+      },
+      bad: {
+        text: `健康大凶，重病之兆，宜及早醫治。宜放下雜務，專心養病。`,
+        advice: [
+          '立即就醫，不要拖延',
+          '放下工作，專心治療',
+          '家人陪伴，給予支持',
+        ],
+        options: [
+          { label: '緊急就醫', desc: '立即去醫院檢查和治療' },
+          { label: '停工休養', desc: '暫停工作，專心養病' },
+          { label: '尋求幫助', desc: '請家人或護工照顧' },
+        ],
+      },
+    },
+    travel: {
+      high: {
+        text: `出行大吉，一路順風，平安順利。本卦${ben.full}主${describeHexagram(benNum)}，正是遠行之時。`,
+        advice: [
+          '如期出發，享受旅途',
+          '提前規劃路線和住宿',
+          '注意安全，保管好財物',
+        ],
+        options: [
+          { label: '如期出行', desc: '按計劃出發，享受旅途' },
+          { label: '提前準備', desc: '提前做好充分準備' },
+          { label: '擴大行程', desc: '考慮增加行程或目的地' },
+        ],
+      },
+      mid: {
+        text: `出行平穩，無大風大浪。宜謹慎規劃，注意安全。`,
+        advice: [
+          '謹慎規劃行程',
+          '注意交通安全',
+          '保持聯繫，告知家人去向',
+        ],
+        options: [
+          { label: '謹慎出行', desc: '小心規劃，安全第一' },
+          { label: '減少行程', desc: '減少不必要的路途' },
+          { label: '延後出行', desc: '考慮延後行程' },
+        ],
+      },
+      low: {
+        text: `出行受阻，交通不便，延誤之兆。宜延後行程，或更改路線。`,
+        advice: [
+          '考慮更改出行方式',
+          '延後行程，等待天氣好轉',
+          '做好延誤的心理準備',
+        ],
+        options: [
+          { label: '更改路線', desc: '選擇其他交通方式或路線' },
+          { label: '延後行程', desc: '改期出行，避開不利時段' },
+          { label: '取消出行', desc: '考慮取消行程' },
+        ],
+      },
+      bad: {
+        text: `出行大凶，災難之兆，不宜出行。宜取消行程，靜守家中。`,
+        advice: [
+          '取消或延後所有出行計劃',
+          '如需緊急出行，格外小心',
+          '靜守家中，等待時機',
+        ],
+        options: [
+          { label: '取消行程', desc: '立即取消所有出行計劃' },
+          { label: '居家避災', desc: '待在家中，避免外出' },
+          { label: '延後觀望', desc: '等待一段時間再做決定' },
+        ],
+      },
+    },
+    lost: {
+      high: {
+        text: `失物可尋，失而復得。本卦${ben.full}主${describeHexagram(benNum)}，物在不遠，宜仔細搜尋。`,
+        advice: [
+          '回憶最後見到物品的地點',
+          '在附近仔細搜尋',
+          '詢問周圍的人',
+        ],
+        options: [
+          { label: '立即搜尋', desc: '馬上回到最後見到物品的地方搜尋' },
+          { label: '詢問他人', desc: '向周圍的人詢問是否見到' },
+          { label: '張貼告示', desc: '張貼尋物啟事' },
+        ],
+      },
+      mid: {
+        text: `失物難尋，半信半疑。宜多方查找，耐心尋覓。`,
+        advice: [
+          '擴大搜尋範圍',
+          '回憶可能遺失的地點',
+          '報案登記',
+        ],
+        options: [
+          { label: '擴大搜尋', desc: '在更大範圍內搜尋' },
+          { label: '報案登記', desc: '向警方報案' },
+          { label: '耐心等待', desc: '等待他人撿到歸還' },
+        ],
+      },
+      low: {
+        text: `失物難尋，被人撿去。宜報案求助，或張貼告示。`,
+        advice: [
+          '報案登記，留下聯繫方式',
+          '張貼尋物啟事，提供獎金',
+          '考慮購買替代品',
+        ],
+        options: [
+          { label: '張貼啟事', desc: '張貼尋物啟事，提供獎金' },
+          { label: '報案處理', desc: '正式報案，調取監控' },
+          { label: '接受損失', desc: '考慮購買替代品' },
+        ],
+      },
+      bad: {
+        text: `失物難尋，已被轉移或銷毀。宜放下執念，另作打算。`,
+        advice: [
+          '接受損失，不要過度糾結',
+          '如有保險，申請理賠',
+          '購買替代品',
+        ],
+        options: [
+          { label: '放下執念', desc: '接受現實，不要過度糾結' },
+          { label: '申請理賠', desc: '如有保險，進行理賠' },
+          { label: '重新購買', desc: '購買新的替代品' },
+        ],
+      },
+    },
+    study: {
+      high: {
+        text: `考試大吉，金榜題名，學業有成。本卦${ben.full}主${describeHexagram(benNum)}，正是用功之時。`,
+        advice: [
+          '加倍努力，衝刺複習',
+          '模擬考試，熟悉考試流程',
+          '保持信心，正常發揮',
+        ],
+        options: [
+          { label: '全力衝刺', desc: '投入全部精力複習備考' },
+          { label: '保持狀態', desc: '維持現有學習節奏' },
+          { label: '調整心態', desc: '放鬆心情，相信自己' },
+        ],
+      },
+      mid: {
+        text: `考試平穩，中規中矩。宜穩定發揮，保持平常心。`,
+        advice: [
+          '按計劃複習，不要慌亂',
+          '重點複習薄弱環節',
+          '保持良好的心態',
+        ],
+        options: [
+          { label: '穩定複習', desc: '按計劃進行複習' },
+          { label: '補強弱點', desc: '專攻薄弱科目' },
+          { label: '調整心態', desc: '保持平常心，減少壓力' },
+        ],
+      },
+      low: {
+        text: `考試受阻，發揮失常，成績不理想。宜查漏補缺，加強復習。`,
+        advice: [
+          '分析問題所在',
+          '針對性補強',
+          '調整學習方法',
+        ],
+        options: [
+          { label: '查漏補缺', desc: '找出薄弱環節，專攻補強' },
+          { label: '改變方法', desc: '調整學習方法和計劃' },
+          { label: '尋求幫助', desc: '請家教或向老師求助' },
+        ],
+      },
+      bad: {
+        text: `考試大凶，名落孫山，學業受阻。宜調整心態，找出問題。`,
+        advice: [
+          '接受現實，不要過度自責',
+          '分析失敗原因',
+          '考慮其他出路',
+        ],
+        options: [
+          { label: '重新出發', desc: '調整心態，再次挑戰' },
+          { label: '改變方向', desc: '考慮其他學習方向' },
+          { label: '另謀出路', desc: '考慮就業或其他發展途徑' },
+        ],
+      },
+    },
+    general: {
+      high: {
+        text: `此事大吉，順心如意，所謀皆成。本卦${ben.full}主${describeHexagram(benNum)}，正是成功之時。`,
+        advice: [
+          '把握機會，大膽行動',
+          '相信自己的判斷',
+          '抓住有利時機',
+        ],
+        options: [
+          { label: '立即行動', desc: '抓住機會，馬上行動' },
+          { label: '謹慎行事', desc: '謹慎規劃，穩步推進' },
+          { label: '多方求證', desc: '徵求他人意見，再做決定' },
+        ],
+      },
+      mid: {
+        text: `此事平穩，無大波折。宜按部就班，穩步推進。`,
+        advice: [
+          '按計劃進行，不要急躁',
+          '保持耐心，循序漸進',
+          '注意細節，避免失誤',
+        ],
+        options: [
+          { label: '穩步推進', desc: '按計劃一步步進行' },
+          { label: '觀望等待', desc: '等待更佳時機' },
+          { label: '調整策略', desc: '根據情況調整計劃' },
+        ],
+      },
+      low: {
+        text: `此事受阻，困難重重。宜冷靜分析，找出問題。`,
+        advice: [
+          '冷靜分析問題所在',
+          '尋求幫助或建議',
+          '調整策略，重新出發',
+        ],
+        options: [
+          { label: '冷靜分析', desc: '仔細分析問題，找出關鍵' },
+          { label: '尋求幫助', desc: '向他人求助或徵求意見' },
+          { label: '調整策略', desc: '改變方法，重新嘗試' },
+        ],
+      },
+      bad: {
+        text: `此事大凶，挫折連連。宜暫緩行動，重新規劃。`,
+        advice: [
+          '暫停行動，避免損失',
+          '重新評估形勢',
+          '考慮其他方案',
+        ],
+        options: [
+          { label: '立即停止', desc: '停止當前行動，避免更大損失' },
+          { label: '重新規劃', desc: '重新評估，制定新方案' },
+          { label: '另謀出路', desc: '考慮其他解決方案' },
+        ],
+      },
+    },
+  };
+  
+  const ausp = rel.auspicious;
+  const template = templates[questionType]?.[ausp] || templates.general[ausp];
+  
+  analysis.text = template.text;
+  analysis.type = questionType;
+  analysis.label = getQuestionTypeLabel(questionType);
+  analysis.advice = template.advice || [];
+  analysis.options = template.options || [];
+  
+  return analysis;
+}
+
+/* ---------------------------------------------------------
    10b. AI Oracle — 智者详解
    --------------------------------------------------------- */
 const AI_CONFIG_KEY = 'momei-ai-config';
@@ -715,21 +1422,52 @@ function hasAIConfig() {
 function buildAIPrompt(reading, question) {
   const { ben, hu, bian, tiTri, yongTri, rel, moving, yaoText, benNum, huNum, bianNum, upper, lower } = reading;
   const huTri = mutualTrigrams(reading.lines);
+  const threePasses = calculateThreePasses(reading);
+  const qType = classifyQuestion(question);
+  const qLabel = getQuestionTypeLabel(qType);
 
   const q = question && question.trim() ? question.trim() : '未有具體所問，泛觀此卦大勢。';
 
   const system = `你是一位精通《周易》與梅花易數的國學智者，人稱「墨梅先生」。
 你以文言與白話交融的筆調解卦，語氣從容溫和，藏鋒於柔。
-解卦時請遵循：
-1. 先言卦象大義（本卦、互卦、變卦之內在聯繫）
-2. 再析體用五行生剋，定吉凶趨勢
-3. 參以動爻爻辭，具體而微
-4. 最後給出貼身的建議
-請用繁體中文，分段書寫，每段以精煉古雅的短句開頭。
-忌機械條列，宜如對坐而談。`;
+
+解卦時請嚴格遵循以下步驟：
+
+【一、卦象總覽】
+先言本卦大義，再析互卦之隱情，最後論變卦之終局。講明三卦之間的內在聯繫，如行路人自起點至終點之歷程。
+
+【二、體用五行】
+詳析體卦與用卦之五行生剋關係，明辨吉凶趨勢。體卦為內、為我、為主；用卦為外、為事、為客。用生體為吉，體生用為耗，用剋體為凶，體剋用為勝，比和為平。
+
+【三、動爻精解】
+闡釋動爻爻辭之深意，指出動爻所揭示的關鍵時機與轉機。動則變，變則通，君子觀動爻而知進退。
+
+【四、過三關（重中之重）】
+必須詳細論述三關：
+1. 應期：指明何時事成，包含季節、月份、日期、時辰，給出具體時間範圍
+2. 方位：指明何方有利，何方宜避，結合八卦方位與五行方位
+3. 人物：指明何人相助、何人為阻，描述人物性格特徵與應對策略
+
+【五、就事論事】
+結合占者所問之事（${qLabel}），給出針對性分析，講明此事之成敗關鍵。
+
+【六、行動建議（必不可少）】
+給出至少三條明確的行動建議，每條建議要有具體可行的步驟。
+
+【七、決策選項】
+提供三個不同的決策選項，每個選項標明優劣與適用場景，幫助占者做出選擇。
+
+【寫作要求】
+- 用繁體中文，分段書寫，每段以精煉古雅的短句開頭
+- 忌機械條列，宜如對坐而談
+- 通俗易懂，讓普通人能明白
+- 語氣平和中正，不誇張不煽情
+- 必須包含過三關的詳細分析和行動建議
+- 必須提供至少三個決策選項`;
 
   const user = `【所問之事】
 ${q}
+（問事類型：${qLabel}）
 
 【卦象】
 本卦：${ben.full}（第${benNum}卦）· 卦辭：${ben.ci}
@@ -751,7 +1489,12 @@ ${q}
 用卦：${yongTri.name}（${yongTri.nature}，${yongTri.elem}）
 關係：${rel.label}——${rel.verdict}
 
-請據此為占者詳解此卦。`;
+【過三關預測】
+應期：${threePasses.yingqi.detail} · ${threePasses.yingqi.timing}
+方位：${threePasses.direction.detail}
+人物：${threePasses.person.detail} · ${threePasses.person.strategy}
+
+請據此為占者詳解此卦，嚴格遵循上述解卦步驟，重點結合所問之事給出實用的行動建議和決策選項。`;
 
   return { system, user };
 }
@@ -905,6 +1648,9 @@ async function callAnthropic(cfg, model, system, user, onProgress) {
 function buildFallbackAnalysis(reading, question) {
   const { ben, hu, bian, tiTri, yongTri, rel, moving, yaoText, benNum } = reading;
   const q = question && question.trim() ? `「${question.trim()}」` : '所問之事';
+  const threePasses = calculateThreePasses(reading);
+  const qType = classifyQuestion(question);
+  const targeted = targetedAnalysis(reading, qType);
 
   const ausp = rel.auspicious;
   const fortuneWord = {
@@ -921,8 +1667,22 @@ function buildFallbackAnalysis(reading, question) {
 
   paragraphs.push(`<p><em>動爻示機。</em>動在第${moving}爻，其辭曰「${yaoText}」。此乃全卦之關鍵、吉凶之樞紐。動則變，變則通，君子觀動爻而知進退。</p>`);
 
-  if (q !== '所問之事') {
-    paragraphs.push(`<p><em>就事而論。</em>以${q}視之，${specificAdvice(reading, ausp)}。</p>`);
+  paragraphs.push(`<p><em>過三關·應期。</em>${threePasses.yingqi.detail} <br/>${threePasses.yingqi.timing}</p>`);
+
+  paragraphs.push(`<p><em>過三關·方位。</em>${threePasses.direction.detail}</p>`);
+
+  paragraphs.push(`<p><em>過三關·人物。</em>${threePasses.person.detail} ${threePasses.person.strategy ? '· ' + threePasses.person.strategy : ''}</p>`);
+
+  paragraphs.push(`<p><em>就事而論。</em>以${q}（${targeted.label}）視之，${targeted.text}</p>`);
+
+  paragraphs.push(`<p><em>行動建議。</em>以下三策，供君選擇：</p>`);
+  if (targeted.advice && targeted.advice.length > 0) {
+    paragraphs.push('<ul>' + targeted.advice.map(a => `<li>${a}</li>`).join('') + '</ul>');
+  }
+
+  if (targeted.options && targeted.options.length > 0) {
+    paragraphs.push(`<p><em>決策選項。</em>君可擇一而行：</p>`);
+    paragraphs.push('<ul>' + targeted.options.map(o => `<li><strong>${o.label}</strong>：${o.desc}</li>`).join('') + '</ul>');
   }
 
   paragraphs.push(`<p><em>智者建言。</em>${wisdomByAuspicious(ausp)}。卦以象告，辭以文言，吉凶悔吝，生乎動者也。占者觀其象、玩其辭、審其動，則思過半矣。</p>`);
@@ -1121,6 +1881,17 @@ function renderReading(reading) {
   const yaoName = yaoNameFor(reading.moving, reading.lines[reading.moving - 1] === 1);
   document.getElementById('yao-line').textContent = `第 ${toChineseNum(reading.moving)} 爻動（${yaoName}）`;
   document.getElementById('yao-text').textContent = reading.yaoText;
+
+  // Three Passes (过三关)
+  const threePasses = calculateThreePasses(reading);
+  document.getElementById('pass-yingqi').textContent = threePasses.yingqi.summary;
+  document.getElementById('pass-direction').textContent = threePasses.direction.summary;
+  document.getElementById('pass-person').textContent = threePasses.person.summary;
+  
+  // Three Passes Detail (过三关详细解读)
+  document.getElementById('detail-yingqi').textContent = threePasses.yingqi.detail + (threePasses.yingqi.timing ? ' · ' + threePasses.yingqi.timing : '');
+  document.getElementById('detail-direction').textContent = threePasses.direction.detail;
+  document.getElementById('detail-person').textContent = threePasses.person.detail + (threePasses.person.strategy ? ' · ' + threePasses.person.strategy : '') + (threePasses.person.warning ? ' · ' + threePasses.person.warning : '');
 
   // Synthesis
   const synth = buildSynthesis(reading);

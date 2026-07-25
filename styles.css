@@ -1126,6 +1126,137 @@ main, section, header, footer { position: relative; z-index: 3; }
 }
 
 /* Synthesis */
+/* =========================================================
+   Three Passes (过三关)
+   ========================================================= */
+.three-passes {
+  margin-bottom: 44px;
+}
+.three-passes__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.three-passes__num {
+  font-family: var(--font-cn-display);
+  font-size: 22px;
+  color: var(--gold);
+  letter-spacing: 0.2em;
+}
+.three-passes__en {
+  font-family: var(--font-en);
+  font-style: italic;
+  font-size: 11px;
+  color: var(--bone-mute);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.pass-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.pass-card {
+  background: linear-gradient(180deg, rgba(26, 30, 38, 0.6) 0%, rgba(11, 13, 16, 0.4) 100%);
+  border: 1px solid var(--line);
+  padding: 20px 16px;
+  border-radius: 2px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+.pass-card:hover {
+  border-color: var(--gold);
+  background: rgba(200, 169, 106, 0.05);
+  transform: translateY(-2px);
+}
+.pass-card__icon {
+  font-family: var(--font-cn-brush);
+  font-size: 36px;
+  color: var(--gold);
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
+.pass-card--yingqi .pass-card__icon { color: var(--vermilion-bright); }
+.pass-card--direction .pass-card__icon { color: var(--jade); }
+.pass-card--person .pass-card__icon { color: var(--gold-bright); }
+.pass-card__title {
+  font-family: var(--font-cn-display);
+  font-size: 17px;
+  color: var(--paper);
+  letter-spacing: 0.15em;
+  margin: 0 0 4px;
+}
+.pass-card__desc {
+  font-size: 12px;
+  color: var(--bone-mute);
+  letter-spacing: 0.1em;
+  margin: 0 0 12px;
+}
+.pass-card__text {
+  font-size: 14px;
+  color: var(--bone-soft);
+  line-height: 1.8;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+/* =========================================================
+   Three Passes Detail
+   ========================================================= */
+.three-passes-detail {
+  margin-top: 24px;
+  padding: 22px;
+  background: rgba(26, 30, 38, 0.6);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+
+.detail-section {
+  margin-bottom: 16px;
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-section__title {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-cn-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  margin-bottom: 8px;
+}
+
+.detail-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 10px;
+  background: rgba(200, 169, 106, 0.2);
+  color: var(--gold);
+  border-radius: 50%;
+  font-size: 11px;
+  font-family: var(--font-cn-display);
+}
+
+.detail-section__text {
+  font-size: 13px;
+  color: var(--bone-soft);
+  line-height: 1.8;
+  letter-spacing: 0.04em;
+  padding-left: 34px;
+}
+
+/* =========================================================
+   Synthesis
+   ========================================================= */
 .synthesis {
   background:
     radial-gradient(ellipse at 80% 0%, rgba(200, 57, 47, 0.08), transparent 60%),
@@ -1931,6 +2062,9 @@ main, section, header, footer { position: relative; z-index: 3; }
   .hex-flow { flex-direction: row; }
   .hex-flow__arrow { width: 40px; }
   .analysis { grid-template-columns: 1fr; }
+  .pass-cards { grid-template-columns: 1fr; }
+  .three-passes-detail { padding: 16px; }
+  .detail-section__text { padding-left: 0; font-size: 12px; }
   .bagua-ring { grid-template-columns: repeat(2, 1fr); }
   .panel-header__en { display: none; }
   .footer { flex-direction: column; }
