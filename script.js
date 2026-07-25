@@ -208,6 +208,85 @@ function elementRelation(tiElem, yongElem) {
   return { type: 'unknown', label: '—', verdict: '—', auspicious: 'mid' };
 }
 
+/* ---------------------------------------------------------
+   综合吉凶判定：体用 + 卦象 + 爻辞 三者合参
+   梅花易数断卦，体用为主，卦象爻辞为参，不可偏废
+   --------------------------------------------------------- */
+
+// 卦象本身的吉凶倾向（依传统卦义）
+const HEX_NATURE = {
+  1:'ping', 2:'ping', 3:'xiong', 4:'ping', 5:'ping', 6:'xiong', 7:'ping', 8:'ji',
+  9:'ping', 10:'xiong', 11:'ji', 12:'xiong', 13:'ji', 14:'ji', 15:'ji', 16:'ji',
+  17:'ji', 18:'xiong', 19:'ji', 20:'ping', 21:'ping', 22:'ping', 23:'xiong', 24:'ji',
+  25:'ji', 26:'ji', 27:'ping', 28:'xiong', 29:'xiong', 30:'ping', 31:'ji', 32:'ji',
+  33:'ping', 34:'xiong', 35:'ji', 36:'xiong', 37:'ji', 38:'xiong', 39:'xiong', 40:'ji',
+  41:'ping', 42:'ji', 43:'ji', 44:'ping', 45:'ji', 46:'ji', 47:'xiong', 48:'ji',
+  49:'ping', 50:'ji', 51:'xiong', 52:'ping', 53:'ji', 54:'xiong', 55:'ji', 56:'xiong',
+  57:'ping', 58:'ji', 59:'xiong', 60:'ping', 61:'ji', 62:'ping', 63:'ji', 64:'ping',
+};
+
+const HEX_NATURE_LABEL = { ji: '吉', ping: '平', xiong: '凶' };
+
+// 爻辞吉凶检测：检测关键词判定爻辞吉凶
+function yaoFortune(yaoText) {
+  if (!yaoText) return { nature: 'ping', reason: '' };
+  const t = yaoText;
+  // 明确的凶兆
+  if (/凶|咎|厲|悔亡|亡|喪|敗|滅|伐|刑|戮|寇|災|禍|惕|號咷|泣血|莫益之|立心勿恆|擊/.test(t)) {
+    return { nature: 'xiong', reason: '爻辭見凶兆之辭' };
+  }
+  // 明确的吉兆
+  if (/吉|元吉|大吉|無咎|利|亨|有孚|有喜|有慶|賜|福|譽|勿憂|乃孚/.test(t)) {
+    return { nature: 'ji', reason: '爻辭見吉慶之辭' };
+  }
+  return { nature: 'ping', reason: '爻辭平緩，吉凶未顯' };
+}
+
+// 综合吉凶：体用(50%) + 卦象(25%) + 爻辞(25%)
+// 返回 { level, label, note } —— note 用于说明三者是否一致
+function overallFortune(reading) {
+  const { rel, benNum, yaoText } = reading;
+
+  // 体用吉凶转分数
+  const tiYongScore = { high: 4, mid: 2, low: -1, 'low-mid': 0, bad: -4 }[rel.auspicious] ?? 2;
+  // 卦象吉凶转分数
+  const hexNature = HEX_NATURE[benNum] || 'ping';
+  const hexScore = { ji: 2, ping: 0, xiong: -2 }[hexNature];
+  // 爻辞吉凶转分数
+  const yaoF = yaoFortune(yaoText);
+  const yaoScore = { ji: 2, ping: 0, xiong: -2 }[yaoF.nature];
+
+  // 加权综合
+  const total = tiYongScore * 0.5 + hexScore * 0.25 + yaoScore * 0.25;
+
+  // 映射回吉凶等级
+  let level;
+  if (total >= 2.5) level = 'high';
+  else if (total >= 0.5) level = 'mid';
+  else if (total >= -0.5) level = 'low-mid';
+  else if (total >= -2.5) level = 'low';
+  else level = 'bad';
+
+  // 判断三者是否一致，生成说明
+  const natures = [rel.auspicious];
+  const auspToNature = { high: 'ji', mid: 'ji', low: 'xiong', 'low-mid': 'ping', bad: 'xiong' };
+  const tiYongNature = auspToNature[rel.auspicious] || 'ping';
+  const parts = [];
+  if (tiYongNature !== hexNature) parts.push(`體用${HEX_NATURE_LABEL[tiYongNature]}而卦象${HEX_NATURE_LABEL[hexNature]}`);
+  if (yaoF.nature !== 'ping' && yaoF.nature !== tiYongNature) parts.push(`體用${HEX_NATURE_LABEL[tiYongNature]}而爻辭${HEX_NATURE_LABEL[yaoF.nature]}`);
+
+  let note = '';
+  if (parts.length > 0) {
+    note = `三者參看：${parts.join('，')}，吉凶相雜，宜慎重。`;
+  } else if (tiYongNature === 'ji' && hexNature === 'ji') {
+    note = '體用、卦象、爻辭皆吉，三致一吉，可放心行之。';
+  } else if (tiYongNature === 'xiong' && hexNature === 'xiong') {
+    note = '體用、卦象、爻辭皆凶，三致一凶，宜止不宜行。';
+  }
+
+  return { level, note, hexNature, yaoNature: yaoF.nature, yaoReason: yaoF.reason };
+}
+
 // Compute a full reading from upper/lower trigram + moving yao
 function buildReading(upperNum, lowerNum, movingYao) {
   const lines = hexLines(upperNum, lowerNum);
@@ -866,6 +945,9 @@ function targetedAnalysis(reading, questionType) {
   const tiPerson = personOf(tiName), yongPerson = personOf(yongName);
   const tiMonths = tiSeason.months.join('、') || '旺時';
   const tiSubDirs = tiDir.sub.join('、') || '中央';
+  // 体用同方位时（比和），次吉方作为调整方向，避免"转向X又避开X"的矛盾
+  const adjustDir = (tiDir.main === yongDir.main) ? (tiDir.sub[0] || yongDir.sub[0] || '他方') : tiDir.main;
+  const avoidDir = (tiDir.main === yongDir.main) ? dirOf(ELEM_CTRL[yongElem]).main : yongDir.main;
 
   const typeConfigs = {
     career: {
@@ -918,7 +1000,7 @@ function targetedAnalysis(reading, questionType) {
           ],
           options: [
             { label: '堅忍前行', desc: `發揮${tiName}之${tiNature}，堅持不懈終有所成` },
-            { label: '調整策略', desc: `轉向${tiDir.main}發展，避開${yongDir.main}方` },
+            { label: '調整策略', desc: `轉向${adjustDir}發展，避開${avoidDir}` },
             { label: '尋求外援', desc: `向${tiPerson.role}求助，增強自身實力` },
           ],
         },
@@ -1056,7 +1138,7 @@ function targetedAnalysis(reading, questionType) {
           ],
           options: [
             { label: '堅忍謀財', desc: `發揮${tiName}之${tiNature}，堅持經營終有所獲` },
-            { label: '調整策略', desc: `轉向${tiDir.main}發展，避開${yongDir.main}方` },
+            { label: '調整策略', desc: `轉向${adjustDir}發展，避開${avoidDir}` },
             { label: '尋求外援', desc: `向${tiPerson.role}求助，共謀財路` },
           ],
         },
@@ -1194,7 +1276,7 @@ function targetedAnalysis(reading, questionType) {
           ],
           options: [
             { label: '堅忍前行', desc: `發揮${tiName}之${tiNature}，堅持出行終可達` },
-            { label: '調整路線', desc: `轉向${tiDir.main}方發展，避開${yongDir.main}方` },
+            { label: '調整路線', desc: `轉向${adjustDir}方發展，避開${avoidDir}` },
             { label: '尋求外援', desc: `向${tiPerson.role}求助結伴同行` },
           ],
         },
@@ -1263,7 +1345,7 @@ function targetedAnalysis(reading, questionType) {
           ],
           options: [
             { label: '堅忍尋找', desc: `發揮${tiName}之${tiNature}，堅持搜尋終有所獲` },
-            { label: '調整策略', desc: `轉向${tiDir.main}方尋找，避開${yongDir.main}方` },
+            { label: '調整策略', desc: `轉向${adjustDir}方尋找，避開${avoidDir}` },
             { label: '尋求外援', desc: `向${tiPerson.role}求助尋找` },
           ],
         },
@@ -1332,7 +1414,7 @@ function targetedAnalysis(reading, questionType) {
           ],
           options: [
             { label: '堅忍攻讀', desc: `發揮${tiName}之${tiNature}，堅持複習終有所成` },
-            { label: '調整策略', desc: `轉向${tiDir.main}方學習，避開${yongDir.main}方之擾` },
+            { label: '調整策略', desc: `轉向${adjustDir}方學習，避開${avoidDir}之擾` },
             { label: '尋求外援', desc: `向${tiPerson.role}求助補習指導` },
           ],
         },
@@ -1401,7 +1483,7 @@ function targetedAnalysis(reading, questionType) {
           ],
           options: [
             { label: '堅忍應訴', desc: `發揮${tiName}之${tiNature}，堅持應訴終可勝` },
-            { label: '調整策略', desc: `轉向${tiDir.main}方收集證據，避開${yongDir.main}方` },
+            { label: '調整策略', desc: `轉向${adjustDir}方收集證據，避開${avoidDir}` },
             { label: '尋求外援', desc: `向${tiPerson.role}求助法律支援` },
           ],
         },
@@ -1470,7 +1552,7 @@ function targetedAnalysis(reading, questionType) {
           ],
           options: [
             { label: '堅忍前行', desc: `發揮${tiName}之${tiNature}，堅持不懈終有所成` },
-            { label: '調整策略', desc: `轉向${tiDir.main}發展，避開${yongDir.main}方` },
+            { label: '調整策略', desc: `轉向${adjustDir}發展，避開${avoidDir}` },
             { label: '尋求外援', desc: `向${tiPerson.role}求助，增強自身實力` },
           ],
         },
@@ -1640,52 +1722,63 @@ function buildAIPrompt(reading, question) {
   const threePasses = calculateThreePasses(reading);
   const qType = classifyQuestion(question);
   const qLabel = getQuestionTypeLabel(qType);
+  const overall = overallFortune(reading);
 
   const q = question && question.trim() ? question.trim() : '未有具體所問，泛觀此卦大勢。';
 
   const system = `你是一位精通《周易》與梅花易數的國學智者，人稱「墨梅先生」。
 你以文言與白話交融的筆調解卦，語氣從容溫和，藏鋒於柔。
 
+【斷卦鐵律——三者合參】
+梅花易數斷卦，體用為主，卦象爻辭為參，三者缺一不可：
+1. 體用五行生剋——定吉凶大勢
+2. 卦象本身吉凶——如泰卦吉、否卦凶、剝卦凶、大有吉，不可不察
+3. 動爻爻辭吉凶——爻辭明言「凶」者，縱體用吉亦當防；爻辭言「吉」者，縱體用凶亦有轉機
+三者若矛盾，當明言指出，不可只言體用而忽略爻辭，更不可爻辭言凶卻判為吉——此乃解卦大忌。
+
 解卦時請嚴格遵循以下步驟：
 
 【一、卦象總覽】
-先言本卦大義，再析互卦之隱情，最後論變卦之終局。講明三卦之間的內在聯繫，如行路人自起點至終點之歷程。
+先言本卦大義（注意卦象本身的吉凶傾向），再析互卦之隱情，最後論變卦之終局。
 
 【二、體用五行】
-詳析體卦與用卦之五行生剋關係，明辨吉凶趨勢。體卦為內、為我、為主；用卦為外、為事、為客。用生體為吉，體生用為耗，用剋體為凶，體剋用為勝，比和為平。
+詳析體卦與用卦之五行生剋關係。體卦為內、為我、為主；用卦為外、為事、為客。
 
-【三、動爻精解】
-闡釋動爻爻辭之深意，指出動爻所揭示的關鍵時機與轉機。動則變，變則通，君子觀動爻而知進退。
+【三、三者合參（核心）】
+必須綜合體用、卦象、爻辭三者得出最終吉凶。若三者矛盾，須明言「體用雖吉，然爻辭示凶」之類，絕不可掩飾矛盾。
 
-【四、過三關（重中之重）】
+【四、動爻精解】
+闡釋動爻爻辭之深意。爻辭言凶者，須指出凶在何處、如何趨避。
+
+【五、過三關（重中之重）】
 必須詳細論述三關：
-1. 應期：指明何時事成，包含季節、月份、日期、時辰，給出具體時間範圍
-2. 方位：指明何方有利，何方宜避，結合八卦方位與五行方位
+1. 應期：指明何時事成，包含季節、月份、日期、時辰
+2. 方位：指明何方有利，何方宜避
 3. 人物：指明何人相助、何人為阻，描述人物性格特徵與應對策略
 
-【五、就事論事】
+【六、就事論事】
 結合占者所問之事（${qLabel}），給出針對性分析，講明此事之成敗關鍵。
 
-【六、行動建議（必不可少）】
+【七、行動建議（必不可少）】
 給出至少三條明確的行動建議，每條建議要有具體可行的步驟。
 
-【七、決策選項】
-提供三個不同的決策選項，每個選項標明優劣與適用場景，幫助占者做出選擇。
+【八、決策選項】
+提供三個不同的決策選項，每個選項標明優劣與適用場景。
 
 【寫作要求】
 - 用繁體中文，分段書寫，每段以精煉古雅的短句開頭
 - 忌機械條列，宜如對坐而談
 - 通俗易懂，讓普通人能明白
 - 語氣平和中正，不誇張不煽情
-- 必須包含過三關的詳細分析和行動建議
-- 必須提供至少三個決策選項`;
+- 吉凶判定必須三者合參，不可偏廢
+- 爻辭吉凶與整體判定必須一致，不可自相矛盾`;
 
   const user = `【所問之事】
 ${q}
 （問事類型：${qLabel}）
 
 【卦象】
-本卦：${ben.full}（第${benNum}卦）· 卦辭：${ben.ci}
+本卦：${ben.full}（第${benNum}卦，卦象吉凶傾向：${HEX_NATURE_LABEL[overall.hexNature]}）· 卦辭：${ben.ci}
 · 上卦：${TRIGRAMS[upper].name}（${TRIGRAMS[upper].nature}，五行屬${TRIGRAMS[upper].elem}）
 · 下卦：${TRIGRAMS[lower].name}（${TRIGRAMS[lower].nature}，五行屬${TRIGRAMS[lower].elem}）
 
@@ -1698,18 +1791,24 @@ ${q}
 【動爻】
 第${moving}爻（${yaoNameFor(moving, reading.lines[moving-1]===1)}）動
 爻辭：${yaoText}
+（爻辭吉凶判定：${HEX_NATURE_LABEL[overall.yaoNature]}，${overall.yaoReason}）
 
 【體用五行】
 體卦：${tiTri.name}（${tiTri.nature}，${tiTri.elem}）
 用卦：${yongTri.name}（${yongTri.nature}，${yongTri.elem}）
 關係：${rel.label}——${rel.verdict}
+（體用吉凶：${rel.auspicious}）
+
+【三者合參結論】
+${overall.note}
+綜合吉凶判定：${overall.level}
 
 【過三關預測】
 應期：${threePasses.yingqi.detail} · ${threePasses.yingqi.timing}
 方位：${threePasses.direction.detail}
 人物：${threePasses.person.detail} · ${threePasses.person.strategy}
 
-請據此為占者詳解此卦，嚴格遵循上述解卦步驟，重點結合所問之事給出實用的行動建議和決策選項。`;
+請據此為占者詳解此卦，嚴格遵循上述解卦步驟。注意：吉凶判定必須三者合參，爻辭吉凶與整體判定必須一致，重點結合所問之事給出實用的行動建議和決策選項。`;
 
   return { system, user };
 }
@@ -1865,9 +1964,24 @@ function buildFallbackAnalysis(reading, question) {
   const q = question && question.trim() ? `「${question.trim()}」` : '所問之事';
   const threePasses = calculateThreePasses(reading);
   const qType = classifyQuestion(question);
-  const targeted = targetedAnalysis(reading, qType);
 
-  const ausp = rel.auspicious;
+  // 综合吉凶：体用 + 卦象 + 爻辞 三者合参
+  const overall = overallFortune(reading);
+  const ausp = overall.level;
+  // 让 rel.verdict 与综合吉凶一致，避免模板引用体用verdict时与综合判定矛盾
+  const verdictByAusp = {
+    high: '綜合觀之，體用卦象爻辭皆順，事多如意，大利之象',
+    mid: '綜合觀之，吉凶參半，事可徐圖，中平之象',
+    low: '綜合觀之，略有阻滯，需費心力，先難後易',
+    'low-mid': '綜合觀之，吉凶相雜，先難後獲，勉力則成',
+    bad: '綜合觀之，凶多吉少，宜守宜止，不可強求',
+  };
+  const readingWithOverall = {
+    ...reading,
+    rel: { ...reading.rel, auspicious: ausp, verdict: verdictByAusp[ausp] },
+  };
+  const targeted = targetedAnalysis(readingWithOverall, qType);
+
   const fortuneWord = {
     high: '吉', mid: '平', low: '小凶', 'low-mid': '凶中藏吉', bad: '凶',
   }[ausp];
@@ -1878,9 +1992,13 @@ function buildFallbackAnalysis(reading, question) {
 
   paragraphs.push(`<p><em>互見其裡。</em>互卦 <strong>${hu.full}</strong>，事之隱情、中間之曲折也；變卦 <strong>${bian.full}</strong>，事之最終歸向也。由本而互、而變，如行路人，自起點歷中途而至終點，其勢連貫，不可割裂觀之。</p>`);
 
-  paragraphs.push(`<p><em>體用定勢。</em>體為 <strong>${tiTri.name}（${tiTri.elem}）</strong>，用為 <strong>${yongTri.name}（${yongTri.elem}）</strong>，二者<strong>${rel.label}</strong>。${rel.verdict}大體言之，此卦<strong class="fortune fortune--${ausp}">屬${fortuneWord}</strong>。</p>`);
+  paragraphs.push(`<p><em>體用定勢。</em>體為 <strong>${tiTri.name}（${tiTri.elem}）</strong>，用為 <strong>${yongTri.name}（${yongTri.elem}）</strong>，二者<strong>${rel.label}</strong>。${rel.verdict}</p>`);
 
-  paragraphs.push(`<p><em>動爻示機。</em>動在第${moving}爻，其辭曰「${yaoText}」。此乃全卦之關鍵、吉凶之樞紐。動則變，變則通，君子觀動爻而知進退。</p>`);
+  // 三者合参段落（核心新增）
+  const tiYongWord = { high:'吉', mid:'吉', low:'凶', 'low-mid':'平', bad:'凶' }[rel.auspicious];
+  paragraphs.push(`<p><em>三者合參。</em>斷卦不可偏執一端。體用${tiYongWord}，卦象屬<strong>${HEX_NATURE_LABEL[overall.hexNature]}</strong>，動爻之辭屬<strong>${HEX_NATURE_LABEL[overall.yaoNature]}</strong>（${overall.yaoReason}）。${overall.note} 綜合觀之，此卦<strong class="fortune fortune--${ausp}">屬${fortuneWord}</strong>。</p>`);
+
+  paragraphs.push(`<p><em>動爻示機。</em>動在第${moving}爻，其辭曰「${yaoText}」。此乃全卦之關鍵、吉凶之樞紐。${overall.yaoNature === 'xiong' ? '爻辭示凶，切不可掉以輕心，當前所行之事恐有隱患。' : overall.yaoNature === 'ji' ? '爻辭示吉，動而得宜，順此而行必有可觀。' : '爻辭平緩，吉凶在於人謀。'}動則變，變則通，君子觀動爻而知進退。</p>`);
 
   paragraphs.push(`<p><em>過三關·應期。</em>${threePasses.yingqi.detail} <br/>${threePasses.yingqi.timing}</p>`);
 
@@ -1900,7 +2018,7 @@ function buildFallbackAnalysis(reading, question) {
     paragraphs.push('<ul>' + targeted.options.map(o => `<li><strong>${o.label}</strong>：${o.desc}</li>`).join('') + '</ul>');
   }
 
-  paragraphs.push(`<p><em>智者建言。</em>${wisdomByAuspicious(ausp)}。卦以象告，辭以文言，吉凶悔吝，生乎動者也。占者觀其象、玩其辭、審其動，則思過半矣。</p>`);
+  paragraphs.push(`<p><em>智者建言。</em>${wisdomByAuspicious(ausp)}。卦以象告，辭以文言，吉凶悔吝，生乎動者也。占者觀其象、玩其辭、審其動，三者合參，則思過半矣。</p>`);
 
   return paragraphs.join('\n');
 }
