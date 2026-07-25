@@ -794,15 +794,15 @@ function calculateThreePasses(reading) {
     
     const td = DIRECTION_MAP[tiElem];
     direction.summary = `四方皆吉，${td.main}最佳`;
-    direction.detail = `主吉方：${td.main}（${td.geomancy}）；亦可${DIRECTION_MAP[yongElem].main}，得同類相助`;
-    direction.lucky = [td.main, DIRECTION_MAP[yongElem].main];
+    direction.detail = `主吉方：${td.main}（${td.geomancy}，${td.position}）；體用同氣，四方皆可，${td.main}最旺`;
+    direction.lucky = [td.main, ...td.sub];
     direction.avoid = [];
     
-    const yp = PERSON_MAP[yongTri.name];
+    const tp2 = PERSON_MAP[tiTri.name];
     person.summary = `得同類相助`;
-    person.detail = `與性格${tiTri.nature}之人相處融洽，彼此互助`;
-    person.role = '同類之人';
-    person.personality = tiTri.nature;
+    person.detail = `宜結交${tp2.role}，其人${tp2.personality}，與你氣性相合，彼此互助`;
+    person.role = tp2.role;
+    person.personality = tp2.personality;
     person.strategy = '真誠相待，平等互惠';
     person.warning = '';
   }
@@ -813,13 +813,15 @@ function calculateThreePasses(reading) {
 function classifyQuestion(question) {
   if (!question) return 'general';
   const q = question.toLowerCase();
-  if (q.includes('事业') || q.includes('工作') || q.includes('官') || q.includes('职场')) return 'career';
-  if (q.includes('感情') || q.includes('婚姻') || q.includes('爱情') || q.includes('婚') || q.includes('恋')) return 'love';
-  if (q.includes('财') || q.includes('钱') || q.includes('投资') || q.includes('生意')) return 'wealth';
-  if (q.includes('病') || q.includes('健康') || q.includes('身体')) return 'health';
-  if (q.includes('出行') || q.includes('旅游') || q.includes('走') || q.includes('远')) return 'travel';
-  if (q.includes('失物') || q.includes('找') || q.includes('丢')) return 'lost';
-  if (q.includes('考试') || q.includes('学') || q.includes('考')) return 'study';
+  // 同时匹配简繁体（lawsuit 优先于 career，避免「官司」被「官」抢先匹配）
+  if (q.match(/官司|诉讼|訴訟|纠纷|糾紛|合同/)) return 'lawsuit';
+  if (q.match(/事业|事業|工作|職場|职场|升官|升職|升职|求职|求職|官運|官运/)) return 'career';
+  if (q.match(/感情|婚姻|爱情|愛情|婚|恋|戀|对象|對象|姻緣|姻缘/)) return 'love';
+  if (q.match(/财|財|钱|錢|投资|投資|生意|盈利|亏损|虧損/)) return 'wealth';
+  if (q.match(/病|健康|身体|身體|疾|醫|医/)) return 'health';
+  if (q.match(/出行|旅游|旅遊|出差|搬家|遠行|远行/)) return 'travel';
+  if (q.match(/失物|丢|遺失|遗失|寻|尋|找不到/)) return 'lost';
+  if (q.match(/考试|考試|升学|升學|考研|學業|学业/)) return 'study';
   return 'general';
 }
 
@@ -832,460 +834,673 @@ function getQuestionTypeLabel(type) {
     travel: '出行遠行',
     lost: '尋物找人',
     study: '考試求學',
+    lawsuit: '官司訴訟',
     general: '雜事諸問',
   };
   return labels[type] || '雜事諸問';
 }
 
 function targetedAnalysis(reading, questionType) {
-  const { ben, bian, tiTri, yongTri, rel, moving, benNum } = reading;
-  const analysis = {};
-  
-  const templates = {
+  const { ben, bian, tiTri, yongTri, rel, moving, benNum, bianNum } = reading;
+  const ausp = rel.auspicious;
+  const hexGloss = describeHexagram(benNum);
+  const bianGloss = describeHexagram(bianNum);
+  const fortuneDesc = {
+    high: '大吉之象，順勢可為',
+    mid: '平穩之象，守中為宜',
+    low: '小有阻滯，需費心力',
+    'low-mid': '凶中藏吉，堅持可成',
+    bad: '凶險之象，宜守不宜進',
+  };
+
+  // 過三關數據安全訪問（應期、方位、人物）
+  const seasonOf = (elem) => SEASON_MAP[elem] || { season: '當時', months: [], days: [], hours: [] };
+  const dirOf = (elem) => DIRECTION_MAP[elem] || { main: '中央', sub: [], position: '', geomancy: '' };
+  const personOf = (name) => PERSON_MAP[name] || { role: '他人', personality: '常人', strategy: '以誠相待' };
+
+  const tiName = tiTri.name, yongName = yongTri.name;
+  const tiElem = tiTri.elem, yongElem = yongTri.elem;
+  const tiNature = tiTri.nature, yongNature = yongTri.nature;
+  const tiSeason = seasonOf(tiElem), yongSeason = seasonOf(yongElem);
+  const tiDir = dirOf(tiElem), yongDir = dirOf(yongElem);
+  const tiPerson = personOf(tiName), yongPerson = personOf(yongName);
+  const tiMonths = tiSeason.months.join('、') || '旺時';
+  const tiSubDirs = tiDir.sub.join('、') || '中央';
+
+  const typeConfigs = {
     career: {
-      high: {
-        text: `事業大吉，上級欣賞，同事相助。本卦${ben.full}主${describeHexagram(benNum)}，正是建功立業之時。`,
-        advice: [
-          '主動爭取新項目或升職機會，把握良機',
-          '多與上司溝通，展示你的能力和想法',
-          '拓展人脈，建立良好的職業形象',
-        ],
-        options: [
-          { label: '積極進取', desc: '立即申請升職或轉崗，把握當前機會' },
-          { label: '穩中求進', desc: '先鞏固現有業績，等待更佳時機' },
-          { label: '結交貴人', desc: '主動與資深同事或領導建立聯繫' },
-        ],
-      },
-      mid: {
-        text: `事業平穩，無大起大落。宜穩紮穩打，積累實力。`,
-        advice: [
-          '專注於當前工作，提升專業技能',
-          '與同事保持良好關係，積累人脈',
-          '耐心等待，不要急於求成',
-        ],
-        options: [
-          { label: '穩固根基', desc: '專注提升技能，等待機會' },
-          { label: '拓展視野', desc: '學習新技能，為將來鋪路' },
-          { label: '保持現狀', desc: '維持現有狀態，觀察形勢變化' },
-        ],
-      },
-      low: {
-        text: `事業受阻，上司壓力，同事掣肘。宜收斂鋒芒，低調行事。`,
-        advice: [
-          '謹慎行事，避免與人發生衝突',
-          '提升自身能力，等待轉機',
-          '考慮內部調崗或外部機會',
-        ],
-        options: [
-          { label: '收斂避鋒', desc: '低調行事，避免成為眾矢之的' },
-          { label: '尋求調整', desc: '申請調崗或轉換部門' },
-          { label: '蓄勢待發', desc: '加強學習，為將來跳槽做準備' },
-        ],
-      },
-      bad: {
-        text: `事業大凶，官非口舌，職位動搖。宜守不宜進，謹慎應對。`,
-        advice: [
-          '保持謹慎，避免做出重大決定',
-          '與上司保持良好溝通，化解誤會',
-          '考慮暫時離開或調整工作環境',
-        ],
-        options: [
-          { label: '退守自保', desc: '減少外出，避免爭執，保住現有職位' },
-          { label: '尋求調解', desc: '找第三方調解，化解矛盾' },
-          { label: '另謀出路', desc: '開始尋找新的工作機會' },
-        ],
+      aspects: {
+        high: {
+          base: `本卦${ben.full}，「${hexGloss}」，事業正處上升之勢。體卦${tiName}（${tiElem}）${rel.label}用卦${yongName}（${yongElem}），${rel.verdict}變卦${bian.full}指向「${bianGloss}」，事之歸向亦佳。`,
+          advice: [
+            `把握當前${fortuneDesc[ausp]}的有利時機，主動爭取重要項目`,
+            `體卦為${tiName}，宜發揮${tiNature}之特質，以${tiElem}行事的方位最為有利（${tiDir.main}）`,
+            `動在第${moving}爻，事有變動之機，宜順勢調整策略`,
+          ],
+          options: [
+            { label: '積極進取', desc: `乘${ben.full}之勢，主動申請升職或核心項目` },
+            { label: '穩中求進', desc: `先鞏固${tiName}之根基，待變卦${bian.full}之勢再進` },
+            { label: '借力貴人', desc: `向${yongPerson.role}尋求支持，可獲助力` },
+          ],
+        },
+        mid: {
+          base: `本卦${ben.full}，「${hexGloss}」，事業處於平穩期。體用${rel.label}，${rel.verdict}變卦${bian.full}顯示「${bianGloss}」，短期無大變。`,
+          advice: [
+            `體卦${tiName}主${tiNature}，宜發揮此特質穩紮穩打`,
+            `動在第${moving}爻，有微調之機，宜小步調整不宜大動`,
+            `靜待時機，待${tiSeason.season}旺相之時（${tiMonths}）再圖進取`,
+          ],
+          options: [
+            { label: '穩固根基', desc: `發揮${tiName}之${tiNature}特質，專注提升核心能力` },
+            { label: '拓展視野', desc: `為${bian.full}所示之變化方向提前布局` },
+            { label: '保持現狀', desc: '維持現有狀態，觀察形勢變化' },
+          ],
+        },
+        low: {
+          base: `本卦${ben.full}，「${hexGloss}」，事業有阻滯。體用${rel.label}，${rel.verdict}需費心力方可有成。變卦${bian.full}顯示「${bianGloss}」，終有轉機。`,
+          advice: [
+            `當前${rel.label}，宜收斂鋒芒，避${yongName}（${yongElem}）之勢`,
+            `體卦${tiName}受制，宜向${tiDir.main}方位休養蓄力`,
+            `動在第${moving}爻，轉機在此，宜耐心等待時機變化`,
+          ],
+          options: [
+            { label: '收斂避鋒', desc: `低調行事，避免與${yongPerson.role}正面衝突` },
+            { label: '尋求調整', desc: `考慮向${tiSubDirs}方向發展` },
+            { label: '蓄勢待發', desc: `待${tiSeason.season}（${tiMonths}）再出擊` },
+          ],
+        },
+        'low-mid': {
+          base: `本卦${ben.full}，「${hexGloss}」，事業凶中藏吉。體用${rel.label}，雖費心力而事可成。變卦${bian.full}顯示「${bianGloss}」，堅持則有轉機。`,
+          advice: [
+            `${rel.verdict}，需付出額外努力，不可坐待`,
+            `體卦${tiName}雖受制，但可制用卦，宜主動出擊`,
+            `動在第${moving}爻為關鍵轉折，把握此機可化險為夷`,
+          ],
+          options: [
+            { label: '堅忍前行', desc: `發揮${tiName}之${tiNature}，堅持不懈終有所成` },
+            { label: '調整策略', desc: `轉向${tiDir.main}發展，避開${yongDir.main}方` },
+            { label: '尋求外援', desc: `向${tiPerson.role}求助，增強自身實力` },
+          ],
+        },
+        bad: {
+          base: `本卦${ben.full}，「${hexGloss}」，事業大凶。體用${rel.label}，${rel.verdict}外力相逼，謀望難遂。變卦${bian.full}雖顯「${bianGloss}」，當下宜止。`,
+          advice: [
+            `當前${rel.label}，外力壓制嚴重，宜止不宜進`,
+            `體卦${tiName}受剋嚴重，宜向${tiDir.main}退守自保`,
+            `動在第${moving}爻，變動在即，宜靜觀其變，不可強求`,
+          ],
+          options: [
+            { label: '退守自保', desc: `向${tiDir.main}退守，保住現有職位` },
+            { label: '暫避鋒芒', desc: `避開${yongPerson.role}，減少正面衝突` },
+            { label: '另謀出路', desc: `待${tiSeason.season}（${tiSeason.months[0] || '旺時'}）後另尋機會` },
+          ],
+        },
       },
     },
     love: {
-      high: {
-        text: `感情大吉，兩情相悅，緣分深厚。本卦${ben.full}主${describeHexagram(benNum)}，正是成婚之時。`,
-        advice: [
-          '大膽表白或求婚，把握良機',
-          '多花時間陪伴對方，加深感情',
-          '考慮進一步發展關係',
-        ],
-        options: [
-          { label: '主動表白', desc: '大膽表白心意，開啟新階段' },
-          { label: '穩步發展', desc: '保持現狀，細水長流培養感情' },
-          { label: '見家長', desc: '安排雙方父母見面，商談婚事' },
-        ],
-      },
-      mid: {
-        text: `感情平穩，不急不躁。宜細水長流，培養感情。`,
-        advice: [
-          '多溝通，了解對方需求',
-          '保持適當距離，給彼此空間',
-          '共同參加活動，增加互動',
-        ],
-        options: [
-          { label: '溫情陪伴', desc: '多花時間相處，培養默契' },
-          { label: '保持距離', desc: '給對方空間，避免過度糾纏' },
-          { label: '共同成長', desc: '一起學習或旅行，增進感情' },
-        ],
-      },
-      low: {
-        text: `感情受阻，爭吵不和，第三者介入。宜冷靜溝通，化解誤會。`,
-        advice: [
-          '冷靜處理爭吵，避免惡言相向',
-          '與對方坦誠溝通，了解問題所在',
-          '考慮是否值得繼續這段關係',
-        ],
-        options: [
-          { label: '主動溝通', desc: '找機會與對方談心，化解矛盾' },
-          { label: '冷處理', desc: '暫時冷靜一段時間，再做決定' },
-          { label: '重新考量', desc: '認真思考這段關係是否適合自己' },
-        ],
-      },
-      bad: {
-        text: `感情大凶，緣分已盡，分手之兆。宜好聚好散，保留尊嚴。`,
-        advice: [
-          '接受現實，不要過度糾纏',
-          '保護自己，避免傷害',
-          '調整心態，重新出發',
-        ],
-        options: [
-          { label: '好聚好散', desc: '平和分手，保留彼此尊嚴' },
-          { label: '冷靜分開', desc: '暫時切斷聯繫，各自冷靜' },
-          { label: '自我修復', desc: '專注自我提升，等待新緣分' },
-        ],
+      aspects: {
+        high: {
+          base: `本卦${ben.full}，「${hexGloss}」，姻緣和合之象。體卦${tiName}（${tiElem}）${rel.label}用卦${yongName}（${yongElem}），${rel.verdict}變卦${bian.full}指向「${bianGloss}」，終成佳偶。`,
+          advice: [
+            `當前${fortuneDesc[ausp]}，宜把握時機推進關係`,
+            `體卦${tiName}主${tiNature}，宜以${tiNature}之德與對方相處，於${tiDir.main}相會最吉`,
+            `動在第${moving}爻，關係有進展之機，宜順勢而為`,
+          ],
+          options: [
+            { label: '主動表白', desc: `乘${ben.full}之和合之勢，勇敢表達心意` },
+            { label: '穩步發展', desc: `以${tiName}之${tiNature}待之，細水長流` },
+            { label: '見家長', desc: `向${tiPerson.role}引見，促成婚事` },
+          ],
+        },
+        mid: {
+          base: `本卦${ben.full}，「${hexGloss}」，感情處於平穩期。體用${rel.label}，${rel.verdict}變卦${bian.full}顯示「${bianGloss}」，關係無大波瀾。`,
+          advice: [
+            `體卦${tiName}主${tiNature}，宜以${tiNature}之德培養感情`,
+            `動在第${moving}爻，有微調之機，宜多溝通增進了解`,
+            `擇${tiSeason.season}（${tiMonths}）相處，感情更易升溫`,
+          ],
+          options: [
+            { label: '溫情陪伴', desc: `發揮${tiName}之${tiNature}，多花時間相處` },
+            { label: '共同成長', desc: `為${bian.full}所示之方向共同規劃` },
+            { label: '保持現狀', desc: '順其自然，不急不躁' },
+          ],
+        },
+        low: {
+          base: `本卦${ben.full}，「${hexGloss}」，感情有阻滯。體用${rel.label}，${rel.verdict}需費心經營。變卦${bian.full}顯示「${bianGloss}」，終有轉機。`,
+          advice: [
+            `當前${rel.label}，宜避${yongName}（${yongElem}）之沖，給彼此空間`,
+            `體卦${tiName}受制，宜向${tiDir.main}方靜心反省`,
+            `動在第${moving}爻，轉機在於此爻之變，宜耐心溝通`,
+          ],
+          options: [
+            { label: '主動溝通', desc: `避開${yongPerson.role}之性格弱點，找時機談心` },
+            { label: '冷處理', desc: `暫向${tiDir.main}方獨處，待${tiSeason.season}再續` },
+            { label: '重新考量', desc: `參照變卦${bian.full}所示之歸向，重新評估` },
+          ],
+        },
+        'low-mid': {
+          base: `本卦${ben.full}，「${hexGloss}」，感情凶中藏吉。體用${rel.label}，雖費心力而事可成。變卦${bian.full}顯示「${bianGloss}」，堅持可成。`,
+          advice: [
+            `${rel.verdict}，需主動付出，不可消極等待`,
+            `體卦${tiName}雖受制，但可制用卦，宜以${tiNature}之德感化對方`,
+            `動在第${moving}爻為轉折，把握此機可化解危機`,
+          ],
+          options: [
+            { label: '堅忍前行', desc: `發揮${tiName}之${tiNature}，堅持經營感情` },
+            { label: '調整策略', desc: `向${tiDir.main}方發展共同興趣，避${yongDir.main}方衝突` },
+            { label: '尋求外援', desc: `請${tiPerson.role}從中調解` },
+          ],
+        },
+        bad: {
+          base: `本卦${ben.full}，「${hexGloss}」，感情大凶。體用${rel.label}，${rel.verdict}緣分受損。變卦${bian.full}雖顯「${bianGloss}」，當下宜止。`,
+          advice: [
+            `當前${rel.label}，外力壓制嚴重，強求無益`,
+            `體卦${tiName}受剋嚴重，宜向${tiDir.main}方退守，保全心神`,
+            `動在第${moving}爻，變動在即，宜順其自然，不可強留`,
+          ],
+          options: [
+            { label: '好聚好散', desc: `向${tiDir.main}方靜心，平和分手保留尊嚴` },
+            { label: '暫避鋒芒', desc: `避開${yongPerson.role}，暫時切斷聯繫` },
+            { label: '自我修復', desc: `待${tiSeason.season}（${tiSeason.months[0] || '旺時'}）後再圖新緣` },
+          ],
+        },
       },
     },
     wealth: {
-      high: {
-        text: `財運大吉，投資獲利，生意興隆。本卦${ben.full}主${describeHexagram(benNum)}，正是發財之時。`,
-        advice: [
-          '果斷投資，把握良機',
-          '擴大生意規模',
-          '謹慎理財，規劃收支',
-        ],
-        options: [
-          { label: '積極投資', desc: '把握機會進行投資或擴張' },
-          { label: '穩健經營', desc: '保持現有收益，穩步發展' },
-          { label: '儲蓄備用', desc: '將部分利潤儲蓄，應對不測' },
-        ],
-      },
-      mid: {
-        text: `財運平穩，收支平衡。宜節儉持家，量入為出。`,
-        advice: [
-          '制定預算，控制開支',
-          '選擇穩健的投資方式',
-          '增加被動收入來源',
-        ],
-        options: [
-          { label: '穩健理財', desc: '選擇低風險投資，穩步積累' },
-          { label: '節約開支', desc: '減少不必要的消費' },
-          { label: '增加收入', desc: '考慮副業或兼職增加收入' },
-        ],
-      },
-      low: {
-        text: `財運受阻，投資虧損，生意蕭條。宜收緊銀根，減少開支。`,
-        advice: [
-          '停止投資，保住本金',
-          '減少開支，度過難關',
-          '尋求新的收入來源',
-        ],
-        options: [
-          { label: '收緊銀根', desc: '減少開支，保存現金' },
-          { label: '及時止損', desc: '停止虧損的投資項目' },
-          { label: '另謀出路', desc: '開闢新的賺錢途徑' },
-        ],
-      },
-      bad: {
-        text: `財運大凶，破財之兆，債務纏身。宜守財為上，避免借貸。`,
-        advice: [
-          '避免任何投資或借貸',
-          '儘快償還債務',
-          '尋求財務諮詢',
-        ],
-        options: [
-          { label: '緊急償債', desc: '優先償還高息債務' },
-          { label: '申請保護', desc: '考慮債務重組或破產保護' },
-          { label: '重新規劃', desc: '制定嚴格的預算和還款計劃' },
-        ],
+      aspects: {
+        high: {
+          base: `本卦${ben.full}，「${hexGloss}」，財運亨通之象。體卦${tiName}（${tiElem}）${rel.label}用卦${yongName}（${yongElem}），${rel.verdict}變卦${bian.full}指向「${bianGloss}」，財源廣進。`,
+          advice: [
+            `把握當前${fortuneDesc[ausp]}，可放手投資經營`,
+            `體卦${tiName}主${tiNature}，宜以${tiElem}行事，財位在${tiDir.main}（${tiDir.geomancy}）`,
+            `動在第${moving}爻，財路有變動之機，宜順勢擴展`,
+          ],
+          options: [
+            { label: '積極投資', desc: `乘${ben.full}之勢，於${tiDir.main}方布局投資` },
+            { label: '穩健經營', desc: `發揮${tiName}之${tiNature}，穩步擴展生意` },
+            { label: '借力貴人', desc: `與${yongPerson.role}合作，共謀財利` },
+          ],
+        },
+        mid: {
+          base: `本卦${ben.full}，「${hexGloss}」，財運平穩。體用${rel.label}，${rel.verdict}變卦${bian.full}顯示「${bianGloss}」，收支平衡。`,
+          advice: [
+            `體卦${tiName}主${tiNature}，宜以${tiNature}之德理財，量入為出`,
+            `動在第${moving}爻，有微調之機，宜小步調整財務策略`,
+            `擇${tiSeason.season}（${tiMonths}）旺相之時布局，收益更佳`,
+          ],
+          options: [
+            { label: '穩健理財', desc: `發揮${tiName}之${tiNature}，選擇低風險投資` },
+            { label: '拓展財路', desc: `為${bian.full}所示之方向提前布局` },
+            { label: '儲蓄備用', desc: '保持現金流穩定，應對不測' },
+          ],
+        },
+        low: {
+          base: `本卦${ben.full}，「${hexGloss}」，財運有阻。體用${rel.label}，${rel.verdict}需費心力方可有成。變卦${bian.full}顯示「${bianGloss}」，終有轉機。`,
+          advice: [
+            `當前${rel.label}，宜收緊銀根，避${yongName}（${yongElem}）之耗`,
+            `體卦${tiName}受制，宜向${tiDir.main}方守財蓄力`,
+            `動在第${moving}爻，轉機在此，宜耐心等待時機變化`,
+          ],
+          options: [
+            { label: '收緊銀根', desc: `避開${yongPerson.role}之財務牽扯，保存現金` },
+            { label: '及時止損', desc: `考慮向${tiSubDirs}方轉移投資` },
+            { label: '蓄勢待發', desc: `待${tiSeason.season}（${tiMonths}）再出擊` },
+          ],
+        },
+        'low-mid': {
+          base: `本卦${ben.full}，「${hexGloss}」，財運凶中藏吉。體用${rel.label}，雖費心力而財可得。變卦${bian.full}顯示「${bianGloss}」，堅持可成。`,
+          advice: [
+            `${rel.verdict}，需付出額外努力，不可坐待`,
+            `體卦${tiName}雖受制，但可制用卦，宜主動謀財`,
+            `動在第${moving}爻為關鍵轉折，把握此機可化險為夷`,
+          ],
+          options: [
+            { label: '堅忍謀財', desc: `發揮${tiName}之${tiNature}，堅持經營終有所獲` },
+            { label: '調整策略', desc: `轉向${tiDir.main}發展，避開${yongDir.main}方` },
+            { label: '尋求外援', desc: `向${tiPerson.role}求助，共謀財路` },
+          ],
+        },
+        bad: {
+          base: `本卦${ben.full}，「${hexGloss}」，財運大凶。體用${rel.label}，${rel.verdict}破財之兆。變卦${bian.full}雖顯「${bianGloss}」，當下宜止。`,
+          advice: [
+            `當前${rel.label}，破財之勢嚴重，宜止不宜進`,
+            `體卦${tiName}受剋嚴重，宜向${tiDir.main}方退守保本`,
+            `動在第${moving}爻，變動在即，宜靜觀其變，不可投機`,
+          ],
+          options: [
+            { label: '退守保本', desc: `向${tiDir.main}方守財，保住本金` },
+            { label: '暫避鋒芒', desc: `避開${yongPerson.role}之財務牽扯` },
+            { label: '另謀出路', desc: `待${tiSeason.season}（${tiSeason.months[0] || '旺時'}）後再圖財路` },
+          ],
+        },
       },
     },
     health: {
-      high: {
-        text: `健康大吉，身體康泰，無病無災。本卦${ben.full}主${describeHexagram(benNum)}，正是養生之時。`,
-        advice: [
-          '保持良好的生活習慣',
-          '適當運動，增強體質',
-          '定期體檢，防患未然',
-        ],
-        options: [
-          { label: '積極養生', desc: '堅持運動和健康飲食' },
-          { label: '定期檢查', desc: '進行全面體檢，確保健康' },
-          { label: '放鬆身心', desc: '適當休閒，保持心情愉快' },
-        ],
-      },
-      mid: {
-        text: `健康平穩，小恙無妨。宜注意休息，飲食均衡。`,
-        advice: [
-          '注意休息，避免過度勞累',
-          '飲食均衡，營養攝取',
-          '適當運動，增強免疫力',
-        ],
-        options: [
-          { label: '調整作息', desc: '保證充足睡眠，養精蓄銳' },
-          { label: '飲食調理', desc: '注意飲食均衡，補充營養' },
-          { label: '輕度鍛煉', desc: '進行散步等輕度運動' },
-        ],
-      },
-      low: {
-        text: `健康受阻，體力下降，小毛病不斷。宜加強鍛煉，調整作息。`,
-        advice: [
-          '減輕工作壓力，注意休息',
-          '加強鍛煉，增強體質',
-          '如有不適，及時就醫',
-        ],
-        options: [
-          { label: '休養調整', desc: '減少工作量，專心調養' },
-          { label: '及時檢查', desc: '去醫院進行詳細檢查' },
-          { label: '改變習慣', desc: '調整飲食和作息習慣' },
-        ],
-      },
-      bad: {
-        text: `健康大凶，重病之兆，宜及早醫治。宜放下雜務，專心養病。`,
-        advice: [
-          '立即就醫，不要拖延',
-          '放下工作，專心治療',
-          '家人陪伴，給予支持',
-        ],
-        options: [
-          { label: '緊急就醫', desc: '立即去醫院檢查和治療' },
-          { label: '停工休養', desc: '暫停工作，專心養病' },
-          { label: '尋求幫助', desc: '請家人或護工照顧' },
-        ],
+      aspects: {
+        high: {
+          base: `本卦${ben.full}，「${hexGloss}」，康泰之象。體卦${tiName}（${tiElem}）${rel.label}用卦${yongName}（${yongElem}），${rel.verdict}變卦${bian.full}指向「${bianGloss}」，身體安和。`,
+          advice: [
+            `當前${fortuneDesc[ausp]}，宜順勢調養，鞏固體質`,
+            `體卦${tiName}主${tiNature}，宜食${tiElem}行之物，於${tiDir.main}方休養最吉`,
+            `動在第${moving}爻，氣機有變動之機，宜順勢調整作息`,
+          ],
+          options: [
+            { label: '積極養生', desc: `乘${ben.full}之安和之勢，堅持運動與飲食調養` },
+            { label: '定期檢查', desc: `於${tiDir.main}（${tiDir.geomancy}）方就醫體檢` },
+            { label: '順時調攝', desc: `擇${tiSeason.season}（${tiMonths}）旺時調養` },
+          ],
+        },
+        mid: {
+          base: `本卦${ben.full}，「${hexGloss}」，健康平穩。體用${rel.label}，${rel.verdict}變卦${bian.full}顯示「${bianGloss}」，無大恙。`,
+          advice: [
+            `體卦${tiName}主${tiNature}，宜以${tiNature}之德養生，順應自然`,
+            `動在第${moving}爻，有微調之機，宜小步調整作息`,
+            `擇${tiSeason.season}（${tiMonths}）調攝，效果更佳`,
+          ],
+          options: [
+            { label: '調整作息', desc: `發揮${tiName}之${tiNature}，保證充足睡眠` },
+            { label: '飲食調理', desc: `為${bian.full}所示之方向調整飲食` },
+            { label: '輕度鍛煉', desc: '循序漸進，避免過度勞累' },
+          ],
+        },
+        low: {
+          base: `本卦${ben.full}，「${hexGloss}」，健康有阻。體用${rel.label}，${rel.verdict}需費心調養。變卦${bian.full}顯示「${bianGloss}」，終有轉機。`,
+          advice: [
+            `當前${rel.label}，宜避${yongName}（${yongElem}）之沖，減少勞累`,
+            `體卦${tiName}受制，宜向${tiDir.main}方休養，避${yongDir.main}方之沖`,
+            `動在第${moving}爻，轉機在此，宜耐心調養`,
+          ],
+          options: [
+            { label: '休養調整', desc: `避開${yongPerson.role}之困擾，專心調養` },
+            { label: '及時檢查', desc: `向${tiSubDirs}方求醫檢查` },
+            { label: '改變習慣', desc: `待${tiSeason.season}（${tiMonths}）旺時再圖恢復` },
+          ],
+        },
+        'low-mid': {
+          base: `本卦${ben.full}，「${hexGloss}」，健康凶中藏吉。體用${rel.label}，雖費心力而病可愈。變卦${bian.full}顯示「${bianGloss}」，堅持調養可成。`,
+          advice: [
+            `${rel.verdict}，需積極治療，不可拖延`,
+            `體卦${tiName}雖受制，但可制用卦，宜主動就醫`,
+            `動在第${moving}爻為關鍵轉折，把握此機可化險為夷`,
+          ],
+          options: [
+            { label: '堅持治療', desc: `發揮${tiName}之${tiNature}，堅持調養終可痊癒` },
+            { label: '調整治療', desc: `向${tiDir.main}方求醫，避開${yongDir.main}方` },
+            { label: '尋求外援', desc: `向${tiPerson.role}求助照護` },
+          ],
+        },
+        bad: {
+          base: `本卦${ben.full}，「${hexGloss}」，健康大凶。體用${rel.label}，${rel.verdict}病勢沉重。變卦${bian.full}雖顯「${bianGloss}」，當下宜止。`,
+          advice: [
+            `當前${rel.label}，病勢嚴重，宜止不宜輕忽`,
+            `體卦${tiName}受剋嚴重，宜向${tiDir.main}方求醫，靜心休養`,
+            `動在第${moving}爻，變動在即，宜靜觀其變，不可強求`,
+          ],
+          options: [
+            { label: '緊急就醫', desc: `向${tiDir.main}（${tiDir.geomancy}）方求醫，及時治療` },
+            { label: '停工休養', desc: `避開${yongPerson.role}之困擾，專心養病` },
+            { label: '尋求幫助', desc: `待${tiSeason.season}（${tiSeason.months[0] || '旺時'}）後再評估病情` },
+          ],
+        },
       },
     },
     travel: {
-      high: {
-        text: `出行大吉，一路順風，平安順利。本卦${ben.full}主${describeHexagram(benNum)}，正是遠行之時。`,
-        advice: [
-          '如期出發，享受旅途',
-          '提前規劃路線和住宿',
-          '注意安全，保管好財物',
-        ],
-        options: [
-          { label: '如期出行', desc: '按計劃出發，享受旅途' },
-          { label: '提前準備', desc: '提前做好充分準備' },
-          { label: '擴大行程', desc: '考慮增加行程或目的地' },
-        ],
-      },
-      mid: {
-        text: `出行平穩，無大風大浪。宜謹慎規劃，注意安全。`,
-        advice: [
-          '謹慎規劃行程',
-          '注意交通安全',
-          '保持聯繫，告知家人去向',
-        ],
-        options: [
-          { label: '謹慎出行', desc: '小心規劃，安全第一' },
-          { label: '減少行程', desc: '減少不必要的路途' },
-          { label: '延後出行', desc: '考慮延後行程' },
-        ],
-      },
-      low: {
-        text: `出行受阻，交通不便，延誤之兆。宜延後行程，或更改路線。`,
-        advice: [
-          '考慮更改出行方式',
-          '延後行程，等待天氣好轉',
-          '做好延誤的心理準備',
-        ],
-        options: [
-          { label: '更改路線', desc: '選擇其他交通方式或路線' },
-          { label: '延後行程', desc: '改期出行，避開不利時段' },
-          { label: '取消出行', desc: '考慮取消行程' },
-        ],
-      },
-      bad: {
-        text: `出行大凶，災難之兆，不宜出行。宜取消行程，靜守家中。`,
-        advice: [
-          '取消或延後所有出行計劃',
-          '如需緊急出行，格外小心',
-          '靜守家中，等待時機',
-        ],
-        options: [
-          { label: '取消行程', desc: '立即取消所有出行計劃' },
-          { label: '居家避災', desc: '待在家中，避免外出' },
-          { label: '延後觀望', desc: '等待一段時間再做決定' },
-        ],
+      aspects: {
+        high: {
+          base: `本卦${ben.full}，「${hexGloss}」，出行順利之象。體卦${tiName}（${tiElem}）${rel.label}用卦${yongName}（${yongElem}），${rel.verdict}變卦${bian.full}指向「${bianGloss}」，旅途安順。`,
+          advice: [
+            `把握當前${fortuneDesc[ausp]}，可如期出行`,
+            `體卦${tiName}主${tiNature}，宜向${tiDir.main}方出行最吉（${tiDir.geomancy}）`,
+            `動在第${moving}爻，途中有變動之機，宜順勢而為`,
+          ],
+          options: [
+            { label: '如期出行', desc: `乘${ben.full}之勢，按計劃出發` },
+            { label: '提前準備', desc: `以${tiName}之${tiNature}待之，做好充分準備` },
+            { label: '擴大行程', desc: `向${tiSubDirs}方拓展行程` },
+          ],
+        },
+        mid: {
+          base: `本卦${ben.full}，「${hexGloss}」，出行平穩。體用${rel.label}，${rel.verdict}變卦${bian.full}顯示「${bianGloss}」，無大波瀾。`,
+          advice: [
+            `體卦${tiName}主${tiNature}，宜以${tiNature}之德規劃行程`,
+            `動在第${moving}爻，有微調之機，宜小步調整路線`,
+            `擇${tiSeason.season}（${tiMonths}）出行，更為順遂`,
+          ],
+          options: [
+            { label: '謹慎出行', desc: `發揮${tiName}之${tiNature}，小心規劃` },
+            { label: '減少行程', desc: `為${bian.full}所示之歸向精簡路線` },
+            { label: '擇時出行', desc: '選擇旺時出發，避開不利時段' },
+          ],
+        },
+        low: {
+          base: `本卦${ben.full}，「${hexGloss}」，出行有阻。體用${rel.label}，${rel.verdict}需費心應對。變卦${bian.full}顯示「${bianGloss}」，終有轉機。`,
+          advice: [
+            `當前${rel.label}，宜避${yongName}（${yongElem}）之沖，謹慎規劃`,
+            `體卦${tiName}受制，宜向${tiDir.main}方出行，避${yongDir.main}方`,
+            `動在第${moving}爻，轉機在此，宜耐心等待時機變化`,
+          ],
+          options: [
+            { label: '更改路線', desc: `避開${yongPerson.role}之干擾，選擇其他路線` },
+            { label: '延後行程', desc: `向${tiSubDirs}方調整出行計劃` },
+            { label: '取消出行', desc: `待${tiSeason.season}（${tiMonths}）再圖出行` },
+          ],
+        },
+        'low-mid': {
+          base: `本卦${ben.full}，「${hexGloss}」，出行凶中藏吉。體用${rel.label}，雖費心力而可行。變卦${bian.full}顯示「${bianGloss}」，堅持可成。`,
+          advice: [
+            `${rel.verdict}，需做好充分準備，不可輕忽`,
+            `體卦${tiName}雖受制，但可制用卦，宜主動應對途中的困難`,
+            `動在第${moving}爻為關鍵轉折，把握此機可化險為夷`,
+          ],
+          options: [
+            { label: '堅忍前行', desc: `發揮${tiName}之${tiNature}，堅持出行終可達` },
+            { label: '調整路線', desc: `轉向${tiDir.main}方發展，避開${yongDir.main}方` },
+            { label: '尋求外援', desc: `向${tiPerson.role}求助結伴同行` },
+          ],
+        },
+        bad: {
+          base: `本卦${ben.full}，「${hexGloss}」，出行大凶。體用${rel.label}，${rel.verdict}不宜遠行。變卦${bian.full}雖顯「${bianGloss}」，當下宜止。`,
+          advice: [
+            `當前${rel.label}，路途凶險，宜止不宜行`,
+            `體卦${tiName}受剋嚴重，宜向${tiDir.main}方退守，靜候時機`,
+            `動在第${moving}爻，變動在即，宜靜觀其變，不可強行`,
+          ],
+          options: [
+            { label: '取消行程', desc: `向${tiDir.main}方退守，取消所有出行計劃` },
+            { label: '居家避災', desc: `避開${yongPerson.role}之干擾，待在家中` },
+            { label: '延後觀望', desc: `待${tiSeason.season}（${tiSeason.months[0] || '旺時'}）後再做決定` },
+          ],
+        },
       },
     },
     lost: {
-      high: {
-        text: `失物可尋，失而復得。本卦${ben.full}主${describeHexagram(benNum)}，物在不遠，宜仔細搜尋。`,
-        advice: [
-          '回憶最後見到物品的地點',
-          '在附近仔細搜尋',
-          '詢問周圍的人',
-        ],
-        options: [
-          { label: '立即搜尋', desc: '馬上回到最後見到物品的地方搜尋' },
-          { label: '詢問他人', desc: '向周圍的人詢問是否見到' },
-          { label: '張貼告示', desc: '張貼尋物啟事' },
-        ],
-      },
-      mid: {
-        text: `失物難尋，半信半疑。宜多方查找，耐心尋覓。`,
-        advice: [
-          '擴大搜尋範圍',
-          '回憶可能遺失的地點',
-          '報案登記',
-        ],
-        options: [
-          { label: '擴大搜尋', desc: '在更大範圍內搜尋' },
-          { label: '報案登記', desc: '向警方報案' },
-          { label: '耐心等待', desc: '等待他人撿到歸還' },
-        ],
-      },
-      low: {
-        text: `失物難尋，被人撿去。宜報案求助，或張貼告示。`,
-        advice: [
-          '報案登記，留下聯繫方式',
-          '張貼尋物啟事，提供獎金',
-          '考慮購買替代品',
-        ],
-        options: [
-          { label: '張貼啟事', desc: '張貼尋物啟事，提供獎金' },
-          { label: '報案處理', desc: '正式報案，調取監控' },
-          { label: '接受損失', desc: '考慮購買替代品' },
-        ],
-      },
-      bad: {
-        text: `失物難尋，已被轉移或銷毀。宜放下執念，另作打算。`,
-        advice: [
-          '接受損失，不要過度糾結',
-          '如有保險，申請理賠',
-          '購買替代品',
-        ],
-        options: [
-          { label: '放下執念', desc: '接受現實，不要過度糾結' },
-          { label: '申請理賠', desc: '如有保險，進行理賠' },
-          { label: '重新購買', desc: '購買新的替代品' },
-        ],
+      aspects: {
+        high: {
+          base: `本卦${ben.full}，「${hexGloss}」，失物可尋之象。體卦${tiName}（${tiElem}）${rel.label}用卦${yongName}（${yongElem}），${rel.verdict}變卦${bian.full}指向「${bianGloss}」，物有歸路。`,
+          advice: [
+            `把握當前${fortuneDesc[ausp]}，宜立即搜尋`,
+            `體卦${tiName}主${tiNature}，宜向${tiDir.main}方（${tiDir.geomancy}）搜尋最吉`,
+            `動在第${moving}爻，物有變動之機，宜順線索追尋`,
+          ],
+          options: [
+            { label: '立即搜尋', desc: `乘${ben.full}之勢，向${tiDir.main}方仔細搜尋` },
+            { label: '詢問他人', desc: `向${yongPerson.role}打聽線索` },
+            { label: '張貼告示', desc: `於${tiSubDirs}方張貼尋物啟事` },
+          ],
+        },
+        mid: {
+          base: `本卦${ben.full}，「${hexGloss}」，失物難定。體用${rel.label}，${rel.verdict}變卦${bian.full}顯示「${bianGloss}」，需費心尋找。`,
+          advice: [
+            `體卦${tiName}主${tiNature}，宜以${tiNature}之德細心回憶`,
+            `動在第${moving}爻，有微調之機，宜擴大搜尋範圍`,
+            `擇${tiSeason.season}（${tiMonths}）旺時搜尋，更易尋獲`,
+          ],
+          options: [
+            { label: '擴大搜尋', desc: `發揮${tiName}之${tiNature}，在更大範圍內搜尋` },
+            { label: '報案登記', desc: `為${bian.full}所示之歸向提前布局` },
+            { label: '耐心等待', desc: '等待他人撿到歸還' },
+          ],
+        },
+        low: {
+          base: `本卦${ben.full}，「${hexGloss}」，失物難尋。體用${rel.label}，${rel.verdict}需費心查找。變卦${bian.full}顯示「${bianGloss}」，終有轉機。`,
+          advice: [
+            `當前${rel.label}，宜避${yongName}（${yongElem}）之耗，冷靜回憶`,
+            `體卦${tiName}受制，宜向${tiDir.main}方重點搜尋`,
+            `動在第${moving}爻，轉機在此，宜耐心等待線索`,
+          ],
+          options: [
+            { label: '張貼啟事', desc: `避開${yongPerson.role}之干擾，提供獎金尋物` },
+            { label: '報案處理', desc: `向${tiSubDirs}方調取監控` },
+            { label: '接受損失', desc: `待${tiSeason.season}（${tiMonths}）後再圖尋找` },
+          ],
+        },
+        'low-mid': {
+          base: `本卦${ben.full}，「${hexGloss}」，失物凶中藏吉。體用${rel.label}，雖費心力而物可尋。變卦${bian.full}顯示「${bianGloss}」，堅持可成。`,
+          advice: [
+            `${rel.verdict}，需主動多方查找，不可坐待`,
+            `體卦${tiName}雖受制，但可制用卦，宜主動出擊尋找`,
+            `動在第${moving}爻為關鍵轉折，把握此機可化險為夷`,
+          ],
+          options: [
+            { label: '堅忍尋找', desc: `發揮${tiName}之${tiNature}，堅持搜尋終有所獲` },
+            { label: '調整策略', desc: `轉向${tiDir.main}方尋找，避開${yongDir.main}方` },
+            { label: '尋求外援', desc: `向${tiPerson.role}求助尋找` },
+          ],
+        },
+        bad: {
+          base: `本卦${ben.full}，「${hexGloss}」，失物大凶。體用${rel.label}，${rel.verdict}物難復得。變卦${bian.full}雖顯「${bianGloss}」，當下宜止。`,
+          advice: [
+            `當前${rel.label}，物已難尋，宜止不宜強求`,
+            `體卦${tiName}受剋嚴重，宜向${tiDir.main}方放下執念`,
+            `動在第${moving}爻，變動在即，宜靜觀其變，不可糾結`,
+          ],
+          options: [
+            { label: '放下執念', desc: `向${tiDir.main}方釋懷，接受損失` },
+            { label: '申請理賠', desc: `避開${yongPerson.role}之干擾，辦理保險理賠` },
+            { label: '重新購買', desc: `待${tiSeason.season}（${tiSeason.months[0] || '旺時'}）後另購替代品` },
+          ],
+        },
       },
     },
     study: {
-      high: {
-        text: `考試大吉，金榜題名，學業有成。本卦${ben.full}主${describeHexagram(benNum)}，正是用功之時。`,
-        advice: [
-          '加倍努力，衝刺複習',
-          '模擬考試，熟悉考試流程',
-          '保持信心，正常發揮',
-        ],
-        options: [
-          { label: '全力衝刺', desc: '投入全部精力複習備考' },
-          { label: '保持狀態', desc: '維持現有學習節奏' },
-          { label: '調整心態', desc: '放鬆心情，相信自己' },
-        ],
+      aspects: {
+        high: {
+          base: `本卦${ben.full}，「${hexGloss}」，學業有成之象。體卦${tiName}（${tiElem}）${rel.label}用卦${yongName}（${yongElem}），${rel.verdict}變卦${bian.full}指向「${bianGloss}」，金榜可期。`,
+          advice: [
+            `把握當前${fortuneDesc[ausp]}，宜全力衝刺備考`,
+            `體卦${tiName}主${tiNature}，宜以${tiNature}之德治學，於${tiDir.main}方溫習最吉`,
+            `動在第${moving}爻，學業有變動之機，宜順勢調整複習策略`,
+          ],
+          options: [
+            { label: '全力衝刺', desc: `乘${ben.full}之勢，投入全部精力複習` },
+            { label: '穩紮穩打', desc: `發揮${tiName}之${tiNature}，按計劃穩步推進` },
+            { label: '請教師長', desc: `向${yongPerson.role}請教疑難` },
+          ],
+        },
+        mid: {
+          base: `本卦${ben.full}，「${hexGloss}」，學業平穩。體用${rel.label}，${rel.verdict}變卦${bian.full}顯示「${bianGloss}」，中規中矩。`,
+          advice: [
+            `體卦${tiName}主${tiNature}，宜以${tiNature}之德治學，循序漸進`,
+            `動在第${moving}爻，有微調之機，宜補強薄弱環節`,
+            `擇${tiSeason.season}（${tiMonths}）旺時衝刺，效果更佳`,
+          ],
+          options: [
+            { label: '穩定複習', desc: `發揮${tiName}之${tiNature}，按計劃複習` },
+            { label: '補強弱點', desc: `為${bian.full}所示之方向重點攻關` },
+            { label: '調整心態', desc: '保持平常心，減少壓力' },
+          ],
+        },
+        low: {
+          base: `本卦${ben.full}，「${hexGloss}」，學業有阻。體用${rel.label}，${rel.verdict}需費心補強。變卦${bian.full}顯示「${bianGloss}」，終有轉機。`,
+          advice: [
+            `當前${rel.label}，宜避${yongName}（${yongElem}）之擾，專心治學`,
+            `體卦${tiName}受制，宜向${tiDir.main}方靜心溫習`,
+            `動在第${moving}爻，轉機在此，宜耐心查找薄弱環節`,
+          ],
+          options: [
+            { label: '查漏補缺', desc: `避開${yongPerson.role}之干擾，專攻薄弱環節` },
+            { label: '改變方法', desc: `向${tiSubDirs}方調整學習方法` },
+            { label: '尋求幫助', desc: `待${tiSeason.season}（${tiMonths}）旺時請教師長` },
+          ],
+        },
+        'low-mid': {
+          base: `本卦${ben.full}，「${hexGloss}」，學業凶中藏吉。體用${rel.label}，雖費心力而可成。變卦${bian.full}顯示「${bianGloss}」，堅持可成。`,
+          advice: [
+            `${rel.verdict}，需付出額外努力，不可懈怠`,
+            `體卦${tiName}雖受制，但可制用卦，宜主動攻克難點`,
+            `動在第${moving}爻為關鍵轉折，把握此機可化險為夷`,
+          ],
+          options: [
+            { label: '堅忍攻讀', desc: `發揮${tiName}之${tiNature}，堅持複習終有所成` },
+            { label: '調整策略', desc: `轉向${tiDir.main}方學習，避開${yongDir.main}方之擾` },
+            { label: '尋求外援', desc: `向${tiPerson.role}求助補習指導` },
+          ],
+        },
+        bad: {
+          base: `本卦${ben.full}，「${hexGloss}」，學業大凶。體用${rel.label}，${rel.verdict}名落孫山之兆。變卦${bian.full}雖顯「${bianGloss}」，當下宜止。`,
+          advice: [
+            `當前${rel.label}，考運不佳，宜止不宜強求`,
+            `體卦${tiName}受剋嚴重，宜向${tiDir.main}方退守，調整心態`,
+            `動在第${moving}爻，變動在即，宜靜觀其變，重新規劃`,
+          ],
+          options: [
+            { label: '重新出發', desc: `向${tiDir.main}方調整心態，再次挑戰` },
+            { label: '改變方向', desc: `避開${yongPerson.role}之干擾，考慮其他方向` },
+            { label: '另謀出路', desc: `待${tiSeason.season}（${tiSeason.months[0] || '旺時'}）後另尋發展` },
+          ],
+        },
       },
-      mid: {
-        text: `考試平穩，中規中矩。宜穩定發揮，保持平常心。`,
-        advice: [
-          '按計劃複習，不要慌亂',
-          '重點複習薄弱環節',
-          '保持良好的心態',
-        ],
-        options: [
-          { label: '穩定複習', desc: '按計劃進行複習' },
-          { label: '補強弱點', desc: '專攻薄弱科目' },
-          { label: '調整心態', desc: '保持平常心，減少壓力' },
-        ],
-      },
-      low: {
-        text: `考試受阻，發揮失常，成績不理想。宜查漏補缺，加強復習。`,
-        advice: [
-          '分析問題所在',
-          '針對性補強',
-          '調整學習方法',
-        ],
-        options: [
-          { label: '查漏補缺', desc: '找出薄弱環節，專攻補強' },
-          { label: '改變方法', desc: '調整學習方法和計劃' },
-          { label: '尋求幫助', desc: '請家教或向老師求助' },
-        ],
-      },
-      bad: {
-        text: `考試大凶，名落孫山，學業受阻。宜調整心態，找出問題。`,
-        advice: [
-          '接受現實，不要過度自責',
-          '分析失敗原因',
-          '考慮其他出路',
-        ],
-        options: [
-          { label: '重新出發', desc: '調整心態，再次挑戰' },
-          { label: '改變方向', desc: '考慮其他學習方向' },
-          { label: '另謀出路', desc: '考慮就業或其他發展途徑' },
-        ],
+    },
+    lawsuit: {
+      aspects: {
+        high: {
+          base: `本卦${ben.full}，「${hexGloss}」，訟事得理之象。體卦${tiName}（${tiElem}）${rel.label}用卦${yongName}（${yongElem}），${rel.verdict}變卦${bian.full}指向「${bianGloss}」，勝訴可期。`,
+          advice: [
+            `把握當前${fortuneDesc[ausp]}，宜積極應訴據理力爭`,
+            `體卦${tiName}主${tiNature}，宜以${tiNature}之德陳辭，於${tiDir.main}方開庭最吉`,
+            `動在第${moving}爻，訟事有變動之機，宜順勢調整策略`,
+          ],
+          options: [
+            { label: '積極應訴', desc: `乘${ben.full}之勢，據理力爭` },
+            { label: '穩紮穩打', desc: `發揮${tiName}之${tiNature}，準備充分證據` },
+            { label: '借力貴人', desc: `向${yongPerson.role}尋求支持` },
+          ],
+        },
+        mid: {
+          base: `本卦${ben.full}，「${hexGloss}」，訟事平穩。體用${rel.label}，${rel.verdict}變卦${bian.full}顯示「${bianGloss}」，宜調解息訟。`,
+          advice: [
+            `體卦${tiName}主${tiNature}，宜以${tiNature}之德應對，尋求調解`,
+            `動在第${moving}爻，有微調之機，宜審時度勢`,
+            `擇${tiSeason.season}（${tiMonths}）旺時開庭，更為有利`,
+          ],
+          options: [
+            { label: '調解息訟', desc: `發揮${tiName}之${tiNature}，尋求和解` },
+            { label: '穩健應對', desc: `為${bian.full}所示之歸向準備` },
+            { label: '保持現狀', desc: '維持現狀，觀察形勢變化' },
+          ],
+        },
+        low: {
+          base: `本卦${ben.full}，「${hexGloss}」，訟事有阻。體用${rel.label}，${rel.verdict}需費心應對。變卦${bian.full}顯示「${bianGloss}」，終有轉機。`,
+          advice: [
+            `當前${rel.label}，宜避${yongName}（${yongElem}）之鋒，謹慎應對`,
+            `體卦${tiName}受制，宜向${tiDir.main}方尋求有力證據`,
+            `動在第${moving}爻，轉機在此，宜耐心等待時機變化`,
+          ],
+          options: [
+            { label: '收斂避鋒', desc: `避開${yongPerson.role}之鋒芒，低調應對` },
+            { label: '尋求調解', desc: `向${tiSubDirs}方尋求第三方調解` },
+            { label: '蓄勢待發', desc: `待${tiSeason.season}（${tiMonths}）旺時再圖反擊` },
+          ],
+        },
+        'low-mid': {
+          base: `本卦${ben.full}，「${hexGloss}」，訟事凶中藏吉。體用${rel.label}，雖費心力而可成。變卦${bian.full}顯示「${bianGloss}」，堅持可勝。`,
+          advice: [
+            `${rel.verdict}，需付出額外努力，不可退縮`,
+            `體卦${tiName}雖受制，但可制用卦，宜主動出擊應訴`,
+            `動在第${moving}爻為關鍵轉折，把握此機可化險為夷`,
+          ],
+          options: [
+            { label: '堅忍應訴', desc: `發揮${tiName}之${tiNature}，堅持應訴終可勝` },
+            { label: '調整策略', desc: `轉向${tiDir.main}方收集證據，避開${yongDir.main}方` },
+            { label: '尋求外援', desc: `向${tiPerson.role}求助法律支援` },
+          ],
+        },
+        bad: {
+          base: `本卦${ben.full}，「${hexGloss}」，訟事大凶。體用${rel.label}，${rel.verdict}敗訴之兆。變卦${bian.full}雖顯「${bianGloss}」，當下宜止。`,
+          advice: [
+            `當前${rel.label}，訟事不利，宜止不宜進`,
+            `體卦${tiName}受剋嚴重，宜向${tiDir.main}方退守，尋求和解`,
+            `動在第${moving}爻，變動在即，宜靜觀其變，不可強求`,
+          ],
+          options: [
+            { label: '退守和解', desc: `向${tiDir.main}方退守，尋求和解息訟` },
+            { label: '暫避鋒芒', desc: `避開${yongPerson.role}之鋒芒，減少正面衝突` },
+            { label: '另謀出路', desc: `待${tiSeason.season}（${tiSeason.months[0] || '旺時'}）後再圖上訴` },
+          ],
+        },
       },
     },
     general: {
-      high: {
-        text: `此事大吉，順心如意，所謀皆成。本卦${ben.full}主${describeHexagram(benNum)}，正是成功之時。`,
-        advice: [
-          '把握機會，大膽行動',
-          '相信自己的判斷',
-          '抓住有利時機',
-        ],
-        options: [
-          { label: '立即行動', desc: '抓住機會，馬上行動' },
-          { label: '謹慎行事', desc: '謹慎規劃，穩步推進' },
-          { label: '多方求證', desc: '徵求他人意見，再做決定' },
-        ],
-      },
-      mid: {
-        text: `此事平穩，無大波折。宜按部就班，穩步推進。`,
-        advice: [
-          '按計劃進行，不要急躁',
-          '保持耐心，循序漸進',
-          '注意細節，避免失誤',
-        ],
-        options: [
-          { label: '穩步推進', desc: '按計劃一步步進行' },
-          { label: '觀望等待', desc: '等待更佳時機' },
-          { label: '調整策略', desc: '根據情況調整計劃' },
-        ],
-      },
-      low: {
-        text: `此事受阻，困難重重。宜冷靜分析，找出問題。`,
-        advice: [
-          '冷靜分析問題所在',
-          '尋求幫助或建議',
-          '調整策略，重新出發',
-        ],
-        options: [
-          { label: '冷靜分析', desc: '仔細分析問題，找出關鍵' },
-          { label: '尋求幫助', desc: '向他人求助或徵求意見' },
-          { label: '調整策略', desc: '改變方法，重新嘗試' },
-        ],
-      },
-      bad: {
-        text: `此事大凶，挫折連連。宜暫緩行動，重新規劃。`,
-        advice: [
-          '暫停行動，避免損失',
-          '重新評估形勢',
-          '考慮其他方案',
-        ],
-        options: [
-          { label: '立即停止', desc: '停止當前行動，避免更大損失' },
-          { label: '重新規劃', desc: '重新評估，制定新方案' },
-          { label: '另謀出路', desc: '考慮其他解決方案' },
-        ],
+      aspects: {
+        high: {
+          base: `本卦${ben.full}，「${hexGloss}」，所問之事正處順勢。體卦${tiName}（${tiElem}）${rel.label}用卦${yongName}（${yongElem}），${rel.verdict}變卦${bian.full}指向「${bianGloss}」，事之歸向亦佳。`,
+          advice: [
+            `把握當前${fortuneDesc[ausp]}的有利時機，主動推進`,
+            `體卦為${tiName}，宜發揮${tiNature}之特質，於${tiDir.main}方行事最吉`,
+            `動在第${moving}爻，事有變動之機，宜順勢調整策略`,
+          ],
+          options: [
+            { label: '積極進取', desc: `乘${ben.full}之勢，主動推進所謀之事` },
+            { label: '穩中求進', desc: `先鞏固${tiName}之根基，待${bian.full}之勢再進` },
+            { label: '借力貴人', desc: `向${yongPerson.role}尋求支持` },
+          ],
+        },
+        mid: {
+          base: `本卦${ben.full}，「${hexGloss}」，所問之事平穩。體用${rel.label}，${rel.verdict}變卦${bian.full}顯示「${bianGloss}」，短期無大變。`,
+          advice: [
+            `體卦${tiName}主${tiNature}，宜發揮此特質穩紮穩打`,
+            `動在第${moving}爻，有微調之機，宜小步調整不宜大動`,
+            `靜待時機，待${tiSeason.season}旺相之時（${tiMonths}）再圖進取`,
+          ],
+          options: [
+            { label: '穩固根基', desc: `發揮${tiName}之${tiNature}特質，專注推進` },
+            { label: '拓展視野', desc: `為${bian.full}所示之變化方向提前布局` },
+            { label: '保持現狀', desc: '維持現有狀態，觀察形勢變化' },
+          ],
+        },
+        low: {
+          base: `本卦${ben.full}，「${hexGloss}」，所問之事有阻。體用${rel.label}，${rel.verdict}需費心力方可有成。變卦${bian.full}顯示「${bianGloss}」，終有轉機。`,
+          advice: [
+            `當前${rel.label}，宜收斂鋒芒，避${yongName}（${yongElem}）之勢`,
+            `體卦${tiName}受制，宜向${tiDir.main}方位休養蓄力`,
+            `動在第${moving}爻，轉機在此，宜耐心等待時機變化`,
+          ],
+          options: [
+            { label: '收斂避鋒', desc: `低調行事，避免與${yongPerson.role}正面衝突` },
+            { label: '尋求調整', desc: `考慮向${tiSubDirs}方向發展` },
+            { label: '蓄勢待發', desc: `待${tiSeason.season}（${tiMonths}）再出擊` },
+          ],
+        },
+        'low-mid': {
+          base: `本卦${ben.full}，「${hexGloss}」，所問之事凶中藏吉。體用${rel.label}，雖費心力而事可成。變卦${bian.full}顯示「${bianGloss}」，堅持則有轉機。`,
+          advice: [
+            `${rel.verdict}，需付出額外努力，不可坐待`,
+            `體卦${tiName}雖受制，但可制用卦，宜主動出擊`,
+            `動在第${moving}爻為關鍵轉折，把握此機可化險為夷`,
+          ],
+          options: [
+            { label: '堅忍前行', desc: `發揮${tiName}之${tiNature}，堅持不懈終有所成` },
+            { label: '調整策略', desc: `轉向${tiDir.main}發展，避開${yongDir.main}方` },
+            { label: '尋求外援', desc: `向${tiPerson.role}求助，增強自身實力` },
+          ],
+        },
+        bad: {
+          base: `本卦${ben.full}，「${hexGloss}」，所問之事大凶。體用${rel.label}，${rel.verdict}外力相逼，謀望難遂。變卦${bian.full}雖顯「${bianGloss}」，當下宜止。`,
+          advice: [
+            `當前${rel.label}，外力壓制嚴重，宜止不宜進`,
+            `體卦${tiName}受剋嚴重，宜向${tiDir.main}退守自保`,
+            `動在第${moving}爻，變動在即，宜靜觀其變，不可強求`,
+          ],
+          options: [
+            { label: '退守自保', desc: `向${tiDir.main}退守，保住現有根基` },
+            { label: '暫避鋒芒', desc: `避開${yongPerson.role}，減少正面衝突` },
+            { label: '另謀出路', desc: `待${tiSeason.season}（${tiSeason.months[0] || '旺時'}）後另尋機會` },
+          ],
+        },
       },
     },
   };
-  
-  const ausp = rel.auspicious;
-  const template = templates[questionType]?.[ausp] || templates.general[ausp];
-  
-  analysis.text = template.text;
-  analysis.type = questionType;
-  analysis.label = getQuestionTypeLabel(questionType);
-  analysis.advice = template.advice || [];
-  analysis.options = template.options || [];
-  
-  return analysis;
+
+  const cfg = typeConfigs[questionType] || typeConfigs.general;
+  const aspect = cfg.aspects[ausp] || typeConfigs.general.aspects[ausp];
+
+  return {
+    text: aspect.base,
+    type: questionType,
+    label: getQuestionTypeLabel(questionType),
+    advice: aspect.advice || [],
+    options: aspect.options || [],
+  };
 }
 
 /* ---------------------------------------------------------
@@ -1756,10 +1971,6 @@ const HEX_DESC = {
   63: '水火既濟，水在火上，既濟。君子以思患而豫防之。既濟之象',
   64: '火水未濟，火在水上，未濟。君子以慎辨物居方。未濟之象',
 };
-
-function describeHexagram(num) {
-  return HEX_DESC[num] || '此卦變化無窮，需細心體會';
-}
 
 function specificAdvice(reading, ausp) {
   const { ben, moving, tiTri } = reading;
