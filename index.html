@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>墨梅易数 · 梅花易数占卜</title>
+<meta name="description" content="以墨为骨，以梅为魂。传承邵康节先生梅花易数之法，应时而占，体用分明。" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Zhi+Mang+Xing&family=Noto+Serif+SC:wght@300;400;500;600;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- 飘落梅花层 -->
+<div class="petals" id="petals" aria-hidden="true"></div>
+
+<!-- 顶部印章式标题 -->
+<header class="masthead">
+  <div class="seal-row">
+    <span class="seal seal--vermilion">易</span>
+    <span class="seal seal--jade">梅</span>
+  </div>
+  <h1 class="title">
+    <span class="title__cn">墨梅易数</span>
+    <span class="title__sub">Plum Blossom Numerology</span>
+  </h1>
+  <p class="tagline">以梅观象　以数起卦　体用相推　吉凶可见</p>
+  <nav class="meta-nav">
+    <span>邵康节　·　北宋</span>
+    <span class="dot">·</span>
+    <span>观梅折花　偶得此法</span>
+  </nav>
+</header>
+
+<!-- 哲思引言 -->
+<section class="prologue">
+  <div class="prologue__column">
+    <div class="vertical-text">
+      <p>先天而天弗違，後天而奉天時。</p>
+      <p>天且弗違，而況於人乎？況於鬼神乎？</p>
+    </div>
+    <cite>—— 《易經·文言傳》</cite>
+  </div>
+  <div class="prologue__divider"><span></span></div>
+  <div class="prologue__column prologue__column--prose">
+    <p class="lead">梅花易數，相傳為北宋邵雍（康節先生）所創。偶見麻雀爭枝落梅，遂以時起卦，知隔夜有女子折花而傷股。</p>
+    <p>其法不拘蓍草，不假龜卜。以數應象，以象成卦，以動爻辨體用，以五行判生剋。隨機即天機，瞬息成斷。</p>
+    <p class="muted">本站取其形意，設三法以應機：時起、數起、字起。占者心誠，則象自來。</p>
+  </div>
+</section>
+
+<!-- 占卜主面板 -->
+<main class="divination" id="divination">
+
+  <div class="panel-header">
+    <span class="panel-header__num">壹</span>
+    <h2>設數起卦</h2>
+    <span class="panel-header__en">Cast the Hexagram</span>
+  </div>
+
+  <!-- 方法切換 -->
+  <div class="method-tabs" role="tablist">
+    <button class="method-tab is-active" role="tab" data-method="time">
+      <span class="method-tab__cn">時起</span>
+      <span class="method-tab__en">By Time</span>
+    </button>
+    <button class="method-tab" role="tab" data-method="number">
+      <span class="method-tab__cn">數起</span>
+      <span class="method-tab__en">By Number</span>
+    </button>
+    <button class="method-tab" role="tab" data-method="word">
+      <span class="method-tab__cn">字起</span>
+      <span class="method-tab__en">By Word</span>
+    </button>
+    <button class="method-tab" role="tab" data-method="random">
+      <span class="method-tab__cn">機起</span>
+      <span class="method-tab__en">By Chance</span>
+    </button>
+  </div>
+
+  <!-- 输入面板 -->
+  <div class="input-stage">
+
+    <!-- 时起 -->
+    <div class="input-panel is-active" data-panel="time">
+      <p class="input-hint">取當下年月日時（農曆為正，此處用公曆近似）之數，合而成卦。</p>
+      <div class="field-grid">
+        <label class="field">
+          <span class="field__label">年</span>
+          <input type="number" id="in-year" min="1900" max="2200" />
+          <span class="field__hint" id="hint-year">—</span>
+        </label>
+        <label class="field">
+          <span class="field__label">月</span>
+          <input type="number" id="in-month" min="1" max="12" />
+          <span class="field__hint" id="hint-month">—</span>
+        </label>
+        <label class="field">
+          <span class="field__label">日</span>
+          <input type="number" id="in-day" min="1" max="31" />
+          <span class="field__hint" id="hint-day">—</span>
+        </label>
+        <label class="field">
+          <span class="field__label">時辰</span>
+          <select id="in-hour">
+            <option value="1">子時 23–01</option>
+            <option value="2">丑時 01–03</option>
+            <option value="3">寅時 03–05</option>
+            <option value="4">卯時 05–07</option>
+            <option value="5">辰時 07–09</option>
+            <option value="6">巳時 09–11</option>
+            <option value="7">午時 11–13</option>
+            <option value="8">未時 13–15</option>
+            <option value="9">申時 15–17</option>
+            <option value="10">酉時 17–19</option>
+            <option value="11">戌時 19–21</option>
+            <option value="12">亥時 21–23</option>
+          </select>
+          <span class="field__hint" id="hint-hour">—</span>
+        </label>
+      </div>
+      <button class="btn-now" id="btn-now">取當下時辰</button>
+    </div>
+
+    <!-- 数起 -->
+    <div class="input-panel" data-panel="number">
+      <p class="input-hint">心中默念所問，隨手報兩數（或三數）。上數為上卦，下數為下卦，兩數之和除六取動爻。</p>
+      <div class="field-grid field-grid--two">
+        <label class="field">
+          <span class="field__label">上數</span>
+          <input type="number" id="num-upper" min="1" placeholder="如 3" />
+        </label>
+        <label class="field">
+          <span class="field__label">下數</span>
+          <input type="number" id="num-lower" min="1" placeholder="如 8" />
+        </label>
+      </div>
+    </div>
+
+    <!-- 字起 -->
+    <div class="input-panel" data-panel="word">
+      <p class="input-hint">以字起卦。單字按筆畫數，雙字則上字為上卦、下字為下卦，合字數加時辰除六取動爻。</p>
+      <div class="field-grid field-grid--two">
+        <label class="field field--wide">
+          <span class="field__label">所問之字</span>
+          <input type="text" id="word-input" maxlength="4" placeholder="如 問　或　遠行" />
+        </label>
+      </div>
+      <p class="input-hint input-hint--small">註：本站字起以 Unicode 碼位折算為筆畫近似，僅供玩象，不作準繩。</p>
+    </div>
+
+    <!-- 机起 -->
+    <div class="input-panel" data-panel="random">
+      <p class="input-hint">不假思慮，任天機自現。一念之間，數已成卦。</p>
+      <div class="random-oracle">
+        <div class="random-oracle__core" id="random-core">
+          <span class="random-oracle__symbol">梅</span>
+        </div>
+        <p class="random-oracle__hint">輕觸中心，聽其自落</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 起卦按钮 -->
+  <div class="cast-row">
+    <button class="cast-btn" id="cast-btn" disabled>
+      <span class="cast-btn__ink"></span>
+      <span class="cast-btn__text">起　卦</span>
+    </button>
+  </div>
+
+  <!-- 状态/说明 -->
+  <p class="status-line" id="status-line">擇一法以起卦，心念專一，方有所應。</p>
+
+</main>
+
+<!-- 结果展示 -->
+<section class="result" id="result" hidden>
+
+  <div class="panel-header panel-header--alt">
+    <span class="panel-header__num">貳</span>
+    <h2>觀象斷吉凶</h2>
+    <span class="panel-header__en">Read the Signs</span>
+  </div>
+
+  <!-- 三卦横排 -->
+  <div class="hexagrams">
+
+    <article class="hex-card hex-card--ben" data-role="ben">
+      <header class="hex-card__head">
+        <span class="hex-card__tag">本卦</span>
+        <span class="hex-card__tag-en">Original</span>
+      </header>
+      <div class="hex-drawing" id="draw-ben"></div>
+      <div class="hex-card__body">
+        <h3 class="hex-name" id="name-ben">—</h3>
+        <p class="hex-gua-ci" id="ci-ben">—</p>
+      </div>
+    </article>
+
+    <article class="hex-card hex-card--hu" data-role="hu">
+      <header class="hex-card__head">
+        <span class="hex-card__tag">互卦</span>
+        <span class="hex-card__tag-en">Mutual</span>
+      </header>
+      <div class="hex-drawing" id="draw-hu"></div>
+      <div class="hex-card__body">
+        <h3 class="hex-name" id="name-hu">—</h3>
+        <p class="hex-gua-ci" id="ci-hu">—</p>
+      </div>
+    </article>
+
+    <article class="hex-card hex-card--bian" data-role="bian">
+      <header class="hex-card__head">
+        <span class="hex-card__tag">變卦</span>
+        <span class="hex-card__tag-en">Changed</span>
+      </header>
+      <div class="hex-drawing" id="draw-bian"></div>
+      <div class="hex-card__body">
+        <h3 class="hex-name" id="name-bian">—</h3>
+        <p class="hex-gua-ci" id="ci-bian">—</p>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- 体用五行分析 -->
+  <div class="analysis">
+    <div class="analysis__block">
+      <h3 class="analysis__title">體用之辨</h3>
+      <div class="tiyong">
+        <div class="tiyong__pair">
+          <div class="tiyong__item tiyong__item--ti">
+            <span class="tiyong__role">體</span>
+            <span class="tiyong__name" id="ti-name">—</span>
+            <span class="tiyong__elem" id="ti-elem">—</span>
+          </div>
+          <div class="tiyong__relation" id="ti-relation">—</div>
+          <div class="tiyong__item tiyong__item--yong">
+            <span class="tiyong__role">用</span>
+            <span class="tiyong__name" id="yong-name">—</span>
+            <span class="tiyong__elem" id="yong-elem">—</span>
+          </div>
+        </div>
+        <p class="tiyong__verdict" id="ti-verdict">—</p>
+      </div>
+    </div>
+
+    <div class="analysis__block">
+      <h3 class="analysis__title">動爻之辭</h3>
+      <div class="yaoci">
+        <div class="yaoci__line" id="yao-line">第 — 爻動</div>
+        <blockquote class="yaoci__text" id="yao-text">—</blockquote>
+      </div>
+    </div>
+  </div>
+
+  <!-- 综合断语 -->
+  <div class="synthesis">
+    <div class="synthesis__stamp">斷</div>
+    <h3 class="synthesis__title">綜合斷語</h3>
+    <div class="synthesis__body" id="synthesis-body">—</div>
+    <div class="synthesis__omen">
+      <span class="omen-label">天機微示</span>
+      <span class="omen-text" id="omen-text">—</span>
+    </div>
+  </div>
+
+  <!-- AI 智能解卦 -->
+  <div class="oracle" id="oracle">
+    <div class="oracle__head">
+      <div class="oracle__title-row">
+        <span class="oracle__seal">智</span>
+        <div>
+          <h3 class="oracle__title">智者詳解</h3>
+          <span class="oracle__subtitle">AI Deep Reading · 結合卦象與時機，給出更貼身的解讀</span>
+        </div>
+      </div>
+      <button class="oracle__config-btn" id="oracle-config-btn" title="設置 API">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+
+    <!-- 配置面板 -->
+    <div class="oracle__config" id="oracle-config" hidden>
+      <div class="config-tabs">
+        <button class="config-tab is-active" data-ctab="preset">快捷選擇</button>
+        <button class="config-tab" data-ctab="custom">自定義</button>
+      </div>
+
+      <div class="config-panel is-active" data-cpanel="preset">
+        <div class="provider-grid" id="provider-grid"></div>
+        <p class="provider-hint">選擇你的 AI 服務商，只需輸入密鑰即可</p>
+      </div>
+
+      <div class="config-panel" data-cpanel="custom">
+        <div class="config-field">
+          <label class="config-field__label">API 地址</label>
+          <input type="text" id="api-endpoint" placeholder="https://api.openai.com/v1/chat/completions" />
+        </div>
+        <div class="config-field">
+          <label class="config-field__label">API 密鑰</label>
+          <input type="password" id="api-key" placeholder="sk-..." />
+        </div>
+        <div class="config-field">
+          <label class="config-field__label">模型名稱</label>
+          <div class="model-field">
+            <select id="api-model-select">
+              <option value="">自動獲取模型列表…</option>
+            </select>
+            <button class="model-refresh" id="model-refresh" title="刷新模型列表">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
+            </button>
+          </div>
+          <input type="text" id="api-model" placeholder="或手動輸入模型名稱" style="margin-top:8px" />
+        </div>
+      </div>
+
+      <div class="config-actions">
+        <button class="config-save" id="config-save">保存設置</button>
+        <button class="config-test" id="config-test">測試連接</button>
+        <span class="config-hint" id="config-status">密鑰僅存於本地瀏覽器</span>
+      </div>
+    </div>
+
+    <!-- 提问输入 -->
+    <div class="oracle__query">
+      <label class="oracle__query-label">你所問何事？（可選，AI 將據此解讀）</label>
+      <textarea id="user-question" rows="2" placeholder="如：問事業前景 / 問感情走向 / 問何時動身……"></textarea>
+    </div>
+
+    <!-- 解读按钮 -->
+    <div class="oracle__actions">
+      <button class="oracle-btn" id="oracle-btn">
+        <span class="oracle-btn__glow"></span>
+        <span class="oracle-btn__text">請　智　者　詳　解</span>
+      </button>
+    </div>
+
+    <!-- AI 解读输出 -->
+    <div class="oracle__output" id="oracle-output" hidden>
+      <div class="oracle__output-head">
+        <span class="oracle__output-tag">智者曰</span>
+        <div class="oracle__thinker">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+      <div class="oracle__bamboo" id="oracle-bamboo">
+        <div class="bamboo-stripes" aria-hidden="true"></div>
+        <div class="bamboo-text" id="bamboo-text"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="recast-row">
+    <button class="recast-btn" id="recast-btn">再 占 一 卦</button>
+  </div>
+
+</section>
+
+<!-- 八卦图鉴 -->
+<section class="bagua-atlas">
+  <div class="panel-header panel-header--alt">
+    <span class="panel-header__num">叁</span>
+    <h2>八卦圖鑑</h2>
+    <span class="panel-header__en">Eight Trigrams</span>
+  </div>
+  <div class="bagua-ring" id="bagua-ring"></div>
+</section>
+
+<!-- 页脚 -->
+<footer class="footer">
+  <div class="footer__column">
+    <p class="footer__line">易者，象也；象也者，像也。</p>
+    <p class="footer__line muted">《易經·繫辭下》</p>
+  </div>
+  <div class="footer__column footer__column--right">
+    <p class="footer__line">墨梅易數 · 玩象之作</p>
+    <p class="footer__line muted">占以修身　勿泥於數　玩以養心　勿惑於象</p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
