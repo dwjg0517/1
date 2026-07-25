@@ -1729,6 +1729,25 @@ main, section, header, footer { position: relative; z-index: 3; }
   text-indent: 2em;
 }
 .bamboo-text p:last-child { margin-bottom: 0; }
+.bamboo-text ul {
+  margin: 12px 0 14px;
+  padding-left: 0;
+  list-style: none;
+}
+.bamboo-text ul li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 8px;
+  text-indent: 0;
+}
+.bamboo-text ul li::before {
+  content: "◇";
+  position: absolute;
+  left: 0;
+  color: var(--jade);
+  font-size: 12px;
+  top: 2px;
+}
 .bamboo-text strong {
   color: var(--gold-bright);
   font-weight: 500;
@@ -1926,6 +1945,13 @@ main, section, header, footer { position: relative; z-index: 3; }
   .tiyong__pair { flex-direction: column; }
   .tiyong__relation { transform: rotate(90deg); padding: 8px 0; }
   .provider-grid { grid-template-columns: repeat(2, 1fr); }
+  .hex-drawing { padding: 14px 10px 8px; }
+  .yao { width: 88px; }
+  .yao--moving { width: 100px; }
+  .bamboo-text { font-size: 14.5px; }
+  .oracle__bamboo { padding: 16px 18px; max-height: 420px; }
+  .synthesis__body { font-size: 14.5px; }
+  .question-display { font-size: 14px; padding: 10px 14px; }
 }
 
 /* Reduced motion */
