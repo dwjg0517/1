@@ -749,11 +749,25 @@ const PERSON_MAP = {
   },
 };
 
-function calculateThreePasses(reading) {
+function calculateThreePasses(reading, questionType = 'general') {
   const { benNum, bianNum, tiTri, yongTri, rel, moving } = reading;
   
   const tiElem = tiTri.elem;
   const yongElem = yongTri.elem;
+  
+  // 问题类型对应的行动词汇，让应期真正贴合所问之事
+  const actionVocab = {
+    career: { act: '應徵、面試、投簡歷、爭取項目、向領導匯報、跳槽', occasion: '職場發展', best: '面試、談薪' },
+    love: { act: '表白、約會、見家長、求婚、確認關係', occasion: '感情發展', best: '表白、約會' },
+    wealth: { act: '投資、理財、開店、收款、談生意、簽合同', occasion: '財運謀利', best: '投資、收款' },
+    health: { act: '就醫、檢查、休養、調理、運動、養生', occasion: '健康調養', best: '就醫、檢查' },
+    travel: { act: '出發、歸家、旅行、出差、搬家、探親', occasion: '出行遠行', best: '出發、歸家' },
+    lost: { act: '尋找、報案、回憶路線、查監控、詢問他人', occasion: '尋物找人', best: '尋找、詢問' },
+    study: { act: '考試、複習、報班、論文答辯、求學申請', occasion: '學業考試', best: '考試、答辯' },
+    lawsuit: { act: '起訴、應訴、調解、收集證據、出庭', occasion: '官司訴訟', best: '調解、出庭' },
+    general: { act: '行動、決策、約見、啟動、實施', occasion: '所問之事', best: '行動、決策' },
+  };
+  const vocab = actionVocab[questionType] || actionVocab.general;
   
   let yingqi = {
     summary: '',
@@ -915,29 +929,29 @@ function calculateThreePasses(reading) {
     year: {
       label: '年',
       title: '年應期',
-      content: `大利之年：逢${wangSeason.season}旺相之年（${wangSeason.months.join('、')}所屬之年），${wangReason}。流年地支與體卦${tiTri.name}（${tiElem}）相生或比和者，事多順遂。`,
-      action: `今年若屬${wangSeason.season}，宜積極進取；若屬${jiSeason.season}（${jiReason}），宜守不宜進，待來年轉機。`,
+      content: `${vocab.occasion}大利之年：逢${wangSeason.season}旺相之年（${wangSeason.months.join('、')}所屬之年），${wangReason}。流年地支與體卦${tiTri.name}（${tiElem}）相生或比和者，${vocab.occasion}事多順遂。`,
+      action: `今年若屬${wangSeason.season}，宜${vocab.act.split('、')[0]}、${vocab.act.split('、')[1]}；若屬${jiSeason.season}（${jiReason}），宜靜守觀望，待來年轉機再圖${vocab.best}。`,
       best: `${wangSeason.season}旺年`,
     },
     month: {
       label: '月',
       title: '月應期',
-      content: `大利之月：${wangSeason.months.join('、')}（${wangSeason.season}），${wangReason}，此數月內行事最為得力。`,
-      action: `宜在${wangSeason.months[0]}至${wangSeason.months[wangSeason.months.length-1]}期間重點推進所問之事；${jiSeason.months.join('、')}（${jiReason}）宜收斂守持。`,
+      content: `${vocab.occasion}大利之月：${wangSeason.months.join('、')}（${wangSeason.season}），${wangReason}，此數月內${vocab.act.split('、')[0]}最為得力。`,
+      action: `宜在${wangSeason.months[0]}至${wangSeason.months[wangSeason.months.length-1]}期間重點推進${vocab.best}；${jiSeason.months.join('、')}（${jiReason}）宜收斂守持，暫緩${vocab.act.split('、')[0]}。`,
       best: `${wangSeason.months.join('、')}`,
     },
     day: {
       label: '日',
       title: '日應期',
-      content: `大利之日：逢${wangSeason.days.join('、')}之日（天干地支與體卦${tiElem}同氣或相生），行事事半功倍。`,
-      action: `若欲簽約、面談、啟動要事，宜擇${wangSeason.days[0]}或${wangSeason.days[1]}之日；忌${jiSeason.days.join('、')}之日（${jiReason}）。`,
+      content: `${vocab.occasion}大利之日：逢${wangSeason.days.join('、')}之日（天干地支與體卦${tiElem}同氣或相生），${vocab.act.split('、')[0]}事半功倍。`,
+      action: `若欲${vocab.best}，宜擇${wangSeason.days[0]}或${wangSeason.days[1]}之日；忌${jiSeason.days.join('、')}之日（${jiReason}），不宜${vocab.act.split('、')[0]}。`,
       best: `${wangSeason.days.join('、')}之日`,
     },
     hour: {
       label: '時',
       title: '時辰應期',
-      content: `大利之時：${wangSeason.hours.join('、')}（${wangSeason.season}旺時），${wangReason}，此時辰行事氣運最旺。`,
-      action: `每日${wangSeason.hours.join('、')}為最佳行事時段，宜在此時做關鍵決策或重要行動；${jiSeason.hours.join('、')}（${jiReason}）宜靜守。`,
+      content: `${vocab.occasion}大利之時：${wangSeason.hours.join('、')}（${wangSeason.season}旺時），${wangReason}，此時辰${vocab.act.split('、')[0]}氣運最旺。`,
+      action: `每日${wangSeason.hours.join('、')}為最佳${vocab.best}時段，宜在此時做關鍵決策或重要${vocab.act.split('、')[0]}；${jiSeason.hours.join('、')}（${jiReason}）宜靜守，不宜${vocab.act.split('、')[0]}。`,
       best: `${wangSeason.hours.join('、')}`,
     },
   };
@@ -1775,8 +1789,8 @@ function hasAIConfig() {
 function buildAIPrompt(reading, question) {
   const { ben, hu, bian, tiTri, yongTri, rel, moving, yaoText, benNum, huNum, bianNum, upper, lower } = reading;
   const huTri = mutualTrigrams(reading.lines);
-  const threePasses = calculateThreePasses(reading);
   const qType = classifyQuestion(question);
+  const threePasses = calculateThreePasses(reading, qType);
   const qLabel = getQuestionTypeLabel(qType);
   const overall = overallFortune(reading);
 
@@ -2018,8 +2032,8 @@ async function callAnthropic(cfg, model, system, user, onProgress) {
 function buildFallbackAnalysis(reading, question) {
   const { ben, hu, bian, tiTri, yongTri, rel, moving, yaoText, benNum } = reading;
   const q = question && question.trim() ? `「${question.trim()}」` : '所問之事';
-  const threePasses = calculateThreePasses(reading);
   const qType = classifyQuestion(question);
+  const threePasses = calculateThreePasses(reading, qType);
 
   // 综合吉凶：体用 + 卦象 + 爻辞 三者合参
   const overall = overallFortune(reading);
@@ -2281,7 +2295,8 @@ function renderReading(reading) {
   document.getElementById('yao-text').textContent = reading.yaoText;
 
   // Three Passes (过三关)
-  const threePasses = calculateThreePasses(reading);
+  const qType = classifyQuestion(state.question);
+  const threePasses = calculateThreePasses(reading, qType);
   document.getElementById('pass-yingqi').textContent = threePasses.yingqi.summary;
   document.getElementById('pass-direction').textContent = threePasses.direction.summary;
   document.getElementById('pass-person').textContent = threePasses.person.summary;
