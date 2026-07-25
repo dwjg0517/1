@@ -65,7 +65,7 @@
     <label class="field field--wide field--question">
       <span class="field__label">所問之事</span>
       <textarea id="question-input" rows="2" maxlength="100" placeholder="如：求官、謀財、問病、遠行、婚姻、失物……"></textarea>
-      <span class="field__hint">請簡述所問，不超過一百字</span>
+      <span class="field__hint" id="question-hint">請簡述所問，回車可直接進入起卦</span>
     </label>
     <button class="cast-btn" id="btn-next">
       <span class="cast-btn__ink"></span>
@@ -175,7 +175,7 @@
           <input type="text" id="word-input" maxlength="4" placeholder="如 問　或　遠行" />
         </label>
       </div>
-      <p class="input-hint input-hint--small">註：本站字起以 Unicode 碼位折算為筆畫近似，僅供玩象，不作準繩。</p>
+      <p class="input-hint input-hint--small">註：本站依康熙字典筆畫為準，常見字已內建，生僻字以算法估算。</p>
     </div>
 
     <!-- 机起 -->

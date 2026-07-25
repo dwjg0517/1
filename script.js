@@ -1172,10 +1172,11 @@ function initQuestionFlow() {
   const cStage = document.getElementById('casting-stage');
   const preview = document.getElementById('preview-text');
 
-  btnNext.addEventListener('click', () => {
+  function proceed() {
     const q = input.value.trim();
     if (!q) {
       setStatus('請先明言所問之事。', true);
+      input.focus();
       return;
     }
     state.question = q;
@@ -1184,6 +1185,29 @@ function initQuestionFlow() {
     cStage.hidden = false;
     setStatus('所問已明，請擇一法起卦。');
     fillCurrentTime();
+    updateCastReadiness();
+  }
+
+  btnNext.addEventListener('click', proceed);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      proceed();
+    }
+  });
+  input.addEventListener('input', () => {
+    const len = input.value.length;
+    const hint = document.getElementById('question-hint');
+    if (len === 0) {
+      hint.textContent = '請簡述所問，回車可直接進入起卦';
+      hint.style.color = '';
+    } else if (len < 100) {
+      hint.textContent = `已輸入 ${len} 字　·　回車可直接進入起卦`;
+      hint.style.color = 'var(--gold)';
+    } else {
+      hint.textContent = `已達上限 100 字`;
+      hint.style.color = 'var(--vermilion-bright)';
+    }
   });
 
   btnBack.addEventListener('click', () => {
