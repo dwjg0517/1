@@ -886,6 +886,62 @@ function calculateThreePasses(reading) {
     person.warning = '';
   }
   
+  // 统一生成四个维度的应期详解（年/月/日/时辰）
+  const tiSeasonData = SEASON_MAP[tiElem];
+  const yongSeasonData = SEASON_MAP[yongElem];
+  const ctrlElem = ELEM_CTRL[yongElem]; // 克制用卦的五行
+  const ctrlSeasonData = SEASON_MAP[ctrlElem];
+
+  // 根据体用关系确定"旺时"和"忌时"
+  let wangSeason, wangReason, jiSeason, jiReason;
+  if (rel.type === 'yongShengTi') {
+    wangSeason = yongSeasonData; wangReason = `用卦${yongTri.name}（${yongElem}）生體，${yongSeasonData.season}用卦旺而生體有力`;
+    jiSeason = SEASON_MAP[ELEM_CTRL[tiElem]]; jiReason = `${SEASON_MAP[ELEM_CTRL[tiElem]].season}體卦受剋，宜避`;
+  } else if (rel.type === 'tiKeYong') {
+    wangSeason = tiSeasonData; wangReason = `體卦${tiTri.name}（${tiElem}）剋用，${tiSeasonData.season}體卦旺而剋用有力`;
+    jiSeason = yongSeasonData; jiReason = `${yongSeasonData.season}用卦旺而反制，宜避`;
+  } else if (rel.type === 'yongKeTi') {
+    wangSeason = tiSeasonData; wangReason = `用卦剋體，待${tiSeasonData.season}體卦旺相方有轉機`;
+    jiSeason = yongSeasonData; jiReason = `${yongSeasonData.season}用卦旺而剋體更甚，切忌`;
+  } else if (rel.type === 'tiShengYong') {
+    wangSeason = tiSeasonData; wangReason = `體生用而耗，${tiSeasonData.season}體卦旺可補耗`;
+    jiSeason = yongSeasonData; jiReason = `${yongSeasonData.season}用卦旺而耗體更甚，宜避`;
+  } else {
+    wangSeason = tiSeasonData; wangReason = `體用比和，${tiSeasonData.season}同氣旺相，事最順`;
+    jiSeason = SEASON_MAP[ELEM_CTRL[tiElem]]; jiReason = `${SEASON_MAP[ELEM_CTRL[tiElem]].season}剋體，雖比和亦宜避`;
+  }
+
+  yingqi.dimensions = {
+    year: {
+      label: '年',
+      title: '年應期',
+      content: `大利之年：逢${wangSeason.season}旺相之年（${wangSeason.months.join('、')}所屬之年），${wangReason}。流年地支與體卦${tiTri.name}（${tiElem}）相生或比和者，事多順遂。`,
+      action: `今年若屬${wangSeason.season}，宜積極進取；若屬${jiSeason.season}（${jiReason}），宜守不宜進，待來年轉機。`,
+      best: `${wangSeason.season}旺年`,
+    },
+    month: {
+      label: '月',
+      title: '月應期',
+      content: `大利之月：${wangSeason.months.join('、')}（${wangSeason.season}），${wangReason}，此數月內行事最為得力。`,
+      action: `宜在${wangSeason.months[0]}至${wangSeason.months[wangSeason.months.length-1]}期間重點推進所問之事；${jiSeason.months.join('、')}（${jiReason}）宜收斂守持。`,
+      best: `${wangSeason.months.join('、')}`,
+    },
+    day: {
+      label: '日',
+      title: '日應期',
+      content: `大利之日：逢${wangSeason.days.join('、')}之日（天干地支與體卦${tiElem}同氣或相生），行事事半功倍。`,
+      action: `若欲簽約、面談、啟動要事，宜擇${wangSeason.days[0]}或${wangSeason.days[1]}之日；忌${jiSeason.days.join('、')}之日（${jiReason}）。`,
+      best: `${wangSeason.days.join('、')}之日`,
+    },
+    hour: {
+      label: '時',
+      title: '時辰應期',
+      content: `大利之時：${wangSeason.hours.join('、')}（${wangSeason.season}旺時），${wangReason}，此時辰行事氣運最旺。`,
+      action: `每日${wangSeason.hours.join('、')}為最佳行事時段，宜在此時做關鍵決策或重要行動；${jiSeason.hours.join('、')}（${jiReason}）宜靜守。`,
+      best: `${wangSeason.hours.join('、')}`,
+    },
+  };
+
   return { yingqi, direction, person };
 }
 
@@ -2175,6 +2231,19 @@ function toChineseNum(n) {
   return ['','初','二','三','四','五','上'][n] || n;
 }
 
+// 应期选择器：切换显示不同时间维度
+function updateYingqiDisplay(dim) {
+  const dims = window.__yingqiDims;
+  if (!dims || !dims[dim]) return;
+  const d = dims[dim];
+  const textEl = document.getElementById('yingqi-text');
+  const actionEl = document.getElementById('yingqi-action');
+  const bestEl = document.getElementById('yingqi-best');
+  if (textEl) textEl.textContent = d.content;
+  if (actionEl) actionEl.textContent = '行事建議：' + d.action;
+  if (bestEl) bestEl.textContent = '最佳應期：' + d.best;
+}
+
 function renderReading(reading) {
   currentReading = reading;
 
@@ -2218,9 +2287,25 @@ function renderReading(reading) {
   document.getElementById('pass-person').textContent = threePasses.person.summary;
   
   // Three Passes Detail (过三关详细解读)
-  document.getElementById('detail-yingqi').textContent = threePasses.yingqi.detail + (threePasses.yingqi.timing ? ' · ' + threePasses.yingqi.timing : '');
   document.getElementById('detail-direction').textContent = threePasses.direction.detail;
   document.getElementById('detail-person').textContent = threePasses.person.detail + (threePasses.person.strategy ? ' · ' + threePasses.person.strategy : '') + (threePasses.person.warning ? ' · ' + threePasses.person.warning : '');
+
+  // 应期选择器：填充数据并绑定切换
+  const dims = threePasses.yingqi.dimensions;
+  if (dims) {
+    // 存储到全局供切换使用
+    window.__yingqiDims = dims;
+    // 默认显示年应期
+    updateYingqiDisplay('year');
+    // 绑定切换事件
+    document.querySelectorAll('.yingqi-tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.yingqi-tab').forEach(t => t.classList.remove('is-active'));
+        tab.classList.add('is-active');
+        updateYingqiDisplay(tab.dataset.dim);
+      };
+    });
+  }
 
   // Synthesis
   const synth = buildSynthesis(reading);

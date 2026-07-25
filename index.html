@@ -337,9 +337,20 @@
     
     <!-- 过三关详细解读 -->
     <div class="three-passes-detail" id="three-passes-detail">
-      <div class="detail-section">
+      <div class="detail-section detail-section--yingqi">
         <h4 class="detail-section__title"><span class="detail-icon">時</span>應期詳解</h4>
-        <p class="detail-section__text" id="detail-yingqi">—</p>
+        <!-- 应期选择器 -->
+        <div class="yingqi-selector" id="yingqi-selector">
+          <button class="yingqi-tab is-active" data-dim="year">年應期</button>
+          <button class="yingqi-tab" data-dim="month">月應期</button>
+          <button class="yingqi-tab" data-dim="day">日應期</button>
+          <button class="yingqi-tab" data-dim="hour">時辰應期</button>
+        </div>
+        <div class="yingqi-content" id="yingqi-content">
+          <p class="yingqi-content__text" id="yingqi-text">—</p>
+          <p class="yingqi-content__action" id="yingqi-action">—</p>
+          <p class="yingqi-content__best" id="yingqi-best">—</p>
+        </div>
       </div>
       <div class="detail-section">
         <h4 class="detail-section__title"><span class="detail-icon">方</span>方位詳解</h4>
