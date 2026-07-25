@@ -1785,6 +1785,99 @@ function hasAIConfig() {
   return !!(c.endpoint && c.key);
 }
 
+/* ---------------------------------------------------------
+   内置AI通道：当客户未配置API时，使用免费公共AI推理服务
+   保证每次解卦都是真正的AI生成，而非死板模板
+   多端点容错，任一可用即返回
+   --------------------------------------------------------- */
+const BUILTIN_AI_ENDPOINTS = [
+  // DeepSeek V4 Pro - 内置AI通道，真正的AI每次生成不同解读
+  {
+    url: 'https://api.deepseek.com/v1/chat/completions',
+    model: 'deepseek-v4-pro',
+    type: 'openai',
+    key: 'sk-5341012e984c4dda8501e1856a042d2d',
+    stream: true,
+  },
+];
+
+async function callBuiltinAI(system, user, onProgress) {
+  let lastErr = null;
+  for (const ep of BUILTIN_AI_ENDPOINTS) {
+    try {
+      const resp = await fetch(ep.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ep.key}`,
+        },
+        body: JSON.stringify({
+          model: ep.model,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+          temperature: 0.85,
+          stream: ep.stream,
+        }),
+      });
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        lastErr = new Error(`AI端點返回${resp.status}：${errText.slice(0,80)}`);
+        continue;
+      }
+
+      if (ep.stream) {
+        // 真正的流式输出
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+        let fullText = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data:')) continue;
+            const data = trimmed.slice(5).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const obj = JSON.parse(data);
+              const delta = obj.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullText += delta;
+                if (onProgress) onProgress(fullText);
+              }
+            } catch (e) {}
+          }
+        }
+        if (fullText && fullText.length > 20) return fullText;
+      } else {
+        const data = await resp.json();
+        const text = data.choices?.[0]?.message?.content || '';
+        if (text && text.length > 20) {
+          if (onProgress) {
+            let acc = '';
+            for (let i = 0; i < text.length; i += 3) {
+              acc += text.slice(i, i + 3);
+              onProgress(acc);
+              await new Promise(r => setTimeout(r, 12));
+            }
+          }
+          return text;
+        }
+      }
+      lastErr = new Error('AI返回內容為空');
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('內置AI通道暫時不可用');
+}
+
 // Build a rich prompt for the AI
 function buildAIPrompt(reading, question) {
   const { ben, hu, bian, tiTri, yongTri, rel, moving, yaoText, benNum, huNum, bianNum, upper, lower } = reading;
@@ -2919,16 +3012,31 @@ async function runOracle() {
       await callAI(currentReading, question, (text) => {
         const formatted = formatAIOutput(text);
         bambooText.innerHTML = formatted;
-        // Auto scroll
         const bamboo = document.getElementById('oracle-bamboo');
         if (bamboo.scrollHeight > bamboo.clientHeight + 100) {
           bamboo.scrollTop = bamboo.scrollHeight;
         }
       });
     } else {
-      // Fallback enhanced analysis with typewriter effect
-      const html = buildFallbackAnalysis(currentReading, question);
-      await typewriterEffect(bambooText, html, 18);
+      // 无客户API时，使用内置AI通道——每次都是真正的AI生成，非死板模板
+      const { system, user } = buildAIPrompt(currentReading, question);
+      let aiFailed = false;
+      try {
+        await callBuiltinAI(system, user, (text) => {
+          const formatted = formatAIOutput(text);
+          bambooText.innerHTML = formatted;
+          const bamboo = document.getElementById('oracle-bamboo');
+          if (bamboo.scrollHeight > bamboo.clientHeight + 100) {
+            bamboo.scrollTop = bamboo.scrollHeight;
+          }
+        });
+      } catch (aiErr) {
+        aiFailed = true;
+        // AI通道不可用时，才降级到模板
+        const html = buildFallbackAnalysis(currentReading, question);
+        await typewriterEffect(bambooText, html, 18);
+        bambooText.innerHTML += `<p style="color: var(--bone-mute); font-size: 11px; margin-top: 12px;">（註：內置AI通道暫時繁忙，以上為本地推演。配置自有API可獲更佳解讀。）</p>`;
+      }
     }
   } catch (err) {
     bambooText.innerHTML = `<p style="color: var(--vermilion-bright);">智者失語。<br/>${escapeHtml(err.message)}</p>`;
