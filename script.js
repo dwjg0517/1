@@ -1132,21 +1132,8 @@ function renderReading(reading) {
   result.hidden = false;
   result.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  // Trigger AI analysis
-  triggerAIAnalysis();
-}
-
-function triggerAIAnalysis() {
-  if (!hasAIConfig()) return;
-  const aiPanel = document.getElementById('oracle');
-  if (aiPanel) aiPanel.hidden = false;
-  callAI(currentReading, state.question, (text) => {
-    const elem = document.getElementById('oracle-text');
-    if (elem) elem.textContent = text;
-  }).catch(() => {
-    const elem = document.getElementById('oracle-text');
-    if (elem) elem.textContent = 'AI 解讀暫不可用，請查看下方卦象分析。';
-  });
+  // Auto-trigger AI / fallback analysis
+  setTimeout(() => runOracle(), 400);
 }
 
 function yaoNameFor(pos, isYang) {
@@ -1693,7 +1680,7 @@ async function runOracle() {
   const btn = document.getElementById('oracle-btn');
   const output = document.getElementById('oracle-output');
   const bambooText = document.getElementById('bamboo-text');
-  const question = document.getElementById('user-question').value;
+  const question = state.question || '';
 
   btn.classList.add('is-thinking');
   output.hidden = false;
