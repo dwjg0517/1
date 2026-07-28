@@ -23,6 +23,8 @@ const TRIGRAMS = {
 // 生: 金→水→木→火→土→金 ; 克: 金→木→土→水→火→金
 const ELEM_GEN = { '金': '水', '水': '木', '木': '火', '火': '土', '土': '金' };
 const ELEM_CTRL = { '金': '木', '木': '土', '土': '水', '水': '火', '火': '金' };
+// 克我者（什么五行克X）—— 用于应期"忌时"和方位"避方"
+const ELEM_CTRLLED_BY = { '金': '火', '木': '金', '土': '木', '水': '土', '火': '水' };
 const ELEM_NAME = { '金': '金', '水': '水', '木': '木', '火': '火', '土': '土' };
 
 /* ---------------------------------------------------------
@@ -751,11 +753,11 @@ const PERSON_MAP = {
 
 function calculateThreePasses(reading, questionType = 'general') {
   const { benNum, bianNum, tiTri, yongTri, rel, moving } = reading;
-  
+
   const tiElem = tiTri.elem;
   const yongElem = yongTri.elem;
-  
-  // 问题类型对应的行动词汇，让应期真正贴合所问之事
+
+  // 问题类型对应的行动词汇
   const actionVocab = {
     career: { act: '应征、面试、投简历、争取项目、向领导汇报、跳槽', occasion: '职场发展', best: '面试、谈薪' },
     love: { act: '表白、约会、见家长、求婚、确认关系', occasion: '感情发展', best: '表白、约会' },
@@ -768,191 +770,175 @@ function calculateThreePasses(reading, questionType = 'general') {
     general: { act: '行动、决策、约见、启动、实施', occasion: '所问之事', best: '行动、决策' },
   };
   const vocab = actionVocab[questionType] || actionVocab.general;
-  
-  let yingqi = {
-    summary: '',
-    detail: '',
-    timing: '',
-    periods: [],
+
+  // 后天八卦方位（梅花易数传统方位，基于卦象而非五行）
+  const tiDirInfo = TRIGRAM_DIRECTION[tiTri.name] || { direction: '中央', description: '中宫' };
+  const yongDirInfo = TRIGRAM_DIRECTION[yongTri.name] || { direction: '中央', description: '中宫' };
+  const tiDirection = tiDirInfo.direction;
+  const yongDirection = yongDirInfo.direction;
+
+  // 格式化月份显示（避免"三月至十二月"的误解）
+  const fmtMonths = (seasonData) => {
+    const m = seasonData.months;
+    if (m.length <= 2) return m.join('、');
+    return m.slice(0, -1).join('、') + '及' + m[m.length - 1];
   };
-  
-  let direction = {
-    summary: '',
-    detail: '',
-    lucky: [],
-    avoid: [],
-  };
-  
-  let person = {
-    summary: '',
-    detail: '',
-    role: '',
-    personality: '',
-    strategy: '',
-    warning: '',
-  };
-  
+
+  // 五行数据
+  const tiSeason = SEASON_MAP[tiElem];
+  const yongSeason = SEASON_MAP[yongElem];
+  // 克制用卦的五行（正确：ELEM_CTRLLED_BY[yongElem] = 什么克yong）
+  const ctrlYongElem = ELEM_CTRLLED_BY[yongElem];
+  const ctrlYongSeason = SEASON_MAP[ctrlYongElem];
+  // 克制体卦的五行（什么克ti）
+  const ctrlTiElem = ELEM_CTRLLED_BY[tiElem];
+  const ctrlTiSeason = SEASON_MAP[ctrlTiElem];
+
+  let yingqi = { summary: '', detail: '', timing: '', periods: [] };
+  let direction = { summary: '', detail: '', lucky: [], avoid: [] };
+  let person = { summary: '', detail: '', role: '', personality: '', strategy: '', warning: '' };
+
+  // ---- 应期：根据体用关系确定旺时与忌时 ----
+  let wangSeason, wangReason, jiSeason, jiReason;
+
   if (rel.type === 'yongShengTi') {
-    const ys = SEASON_MAP[yongElem];
-    yingqi.summary = `${ys.season}得生助，事易成`;
-    yingqi.detail = `${ys.season}（${ys.months.join('、')}）为应期，逢${ys.days.join('、')}之日更佳，${ys.hours.join('、')}行事最为有利`;
-    yingqi.timing = `最佳应期：${ys.months[0]}至${ys.months[ys.months.length-1]}，如逢${ys.days[0]}日${ys.hours[0]}起手，事半功倍`;
-    yingqi.periods = ys.months;
-    
-    const yd = DIRECTION_MAP[yongElem];
-    direction.summary = `宜向${yd.main}，可得助力`;
-    direction.detail = `主吉方：${yd.main}（${yd.geomancy}）；次吉方：${yd.sub.join('、')}；自身稳固方：${DIRECTION_MAP[tiElem].main}`;
-    direction.lucky = [yd.main, ...yd.sub];
+    // 用生体：用卦旺时生体有力
+    wangSeason = yongSeason; wangReason = `用卦${yongTri.name}（${yongElem}）生体，${yongSeason.season}用卦旺而生体有力`;
+    jiSeason = ctrlTiSeason; jiReason = `${ctrlTiSeason.season}（${ctrlTiElem}克${tiElem}）体卦受克，宜避`;
+    yingqi.summary = `${yongSeason.season}得生助，事易成`;
+    yingqi.detail = `${yongSeason.season}（${fmtMonths(yongSeason)}）为应期，逢${yongSeason.days.join('、')}之日更佳，${yongSeason.hours.join('、')}行事最为有利`;
+    yingqi.timing = `最佳应期：${fmtMonths(yongSeason)}，逢${yongSeason.days[0]}日${yongSeason.hours[0]}起手，事半功倍`;
+    yingqi.periods = yongSeason.months;
+
+    direction.summary = `宜向${yongDirection}（用卦${yongTri.name}方），可得助力`;
+    direction.detail = `主吉方：${yongDirection}（${yongDirInfo.description}），用卦生体，向用卦方行事可获助力；自身稳固方：${tiDirection}（${tiDirInfo.description}）`;
+    direction.lucky = [yongDirection, tiDirection];
     direction.avoid = [];
-    
-    const yp = PERSON_MAP[yongTri.name];
+
+  } else if (rel.type === 'tiKeYong') {
+    // 体克用：体卦旺时克用有力
+    wangSeason = tiSeason; wangReason = `体卦${tiTri.name}（${tiElem}）克用，${tiSeason.season}体卦旺而克用有力`;
+    jiSeason = yongSeason; jiReason = `${yongSeason.season}（用卦${yongElem}旺）反制体卦，宜避`;
+    yingqi.summary = `${tiSeason.season}克制用卦，事可成`;
+    yingqi.detail = `${tiSeason.season}（${fmtMonths(tiSeason)}）体卦旺而克用有力，逢${tiSeason.days.join('、')}之日可主动出击，${tiSeason.hours.join('、')}时机最佳`;
+    yingqi.timing = `宜在${fmtMonths(tiSeason)}期间积极行动，${tiSeason.hours[0]}行事可压制对方`;
+    yingqi.periods = tiSeason.months;
+
+    direction.summary = `宜向${tiDirection}（体卦${tiTri.name}方），增强克制之力`;
+    direction.detail = `主攻方：${tiDirection}（${tiDirInfo.description}），体卦克用，向体卦方行事增强自身气势；不宜向${yongDirection}（${yongDirInfo.description}），恐遭反制`;
+    direction.lucky = [tiDirection];
+    direction.avoid = [yongDirection];
+
+  } else if (rel.type === 'yongKeTi') {
+    // 用克体：当前不利，待体卦旺时或克制用卦之时方有转机
+    wangSeason = tiSeason; wangReason = `用卦克体，待${tiSeason.season}体卦旺相方有转机`;
+    jiSeason = yongSeason; jiReason = `${yongSeason.season}（用卦${yongElem}旺）克体更甚，切忌`;
+    yingqi.summary = `${tiSeason.season}体卦旺时，或${ctrlYongSeason.season}克制用卦之时，方有转机`;
+    yingqi.detail = `用卦克体，当前不利。宜静守待时，待${tiSeason.season}（${fmtMonths(tiSeason)}）体卦得势，或逢${ctrlYongSeason.season}（${ctrlYongElem}克${yongElem}）克制用卦之时方有转机`;
+    yingqi.timing = `宜退不宜进，待${tiSeason.months[0]}后或${ctrlYongSeason.season}再图进取`;
+    yingqi.periods = tiSeason.months;
+
+    direction.summary = `宜向${tiDirection}（体卦方）自保，忌向${yongDirection}（用卦方）`;
+    direction.detail = `避凶方：宜向${tiDirection}（${tiDirInfo.description}），增强自身气运；切忌向${yongDirection}（${yongDirInfo.description}），用卦克体，恐遭其害`;
+    direction.lucky = [tiDirection];
+    direction.avoid = [yongDirection];
+
+  } else if (rel.type === 'tiShengYong') {
+    // 体生用：元气外泄，待体卦旺时补充
+    wangSeason = tiSeason; wangReason = `体生用而耗，${tiSeason.season}体卦旺可补耗`;
+    jiSeason = yongSeason; jiReason = `${yongSeason.season}（用卦${yongElem}旺）耗体更甚，宜避`;
+    yingqi.summary = `${tiSeason.season}体卦旺时，可补耗损`;
+    yingqi.detail = `体生用者，元气外泄，需付出代价。${tiSeason.season}（${fmtMonths(tiSeason)}）体卦旺相可补充元气，逢${tiSeason.days.join('、')}之日为佳`;
+    yingqi.timing = `前期需多付出，${tiSeason.months[tiSeason.months.length-1]}后渐入佳境`;
+    yingqi.periods = tiSeason.months;
+
+    direction.summary = `宜向${tiDirection}（体卦方），补充元气`;
+    direction.detail = `休养方：${tiDirection}（${tiDirInfo.description}），体生用而耗，宜向体卦方休养补气；少往${yongDirection}（${yongDirInfo.description}），恐增耗散`;
+    direction.lucky = [tiDirection];
+    direction.avoid = [yongDirection];
+
+  } else {
+    // 比和：体卦旺时最顺
+    wangSeason = tiSeason; wangReason = `体用比和，${tiSeason.season}同气旺相，事最顺`;
+    jiSeason = ctrlTiSeason; jiReason = `${ctrlTiSeason.season}（${ctrlTiElem}克${tiElem}）虽比和亦宜避`;
+    yingqi.summary = `${tiSeason.season}旺相之时，事可顺遂`;
+    yingqi.detail = `体用比和，事多顺遂。${tiSeason.season}（${fmtMonths(tiSeason)}）为旺相之时，逢${tiSeason.days.join('、')}之日更为有利`;
+    yingqi.timing = `${fmtMonths(tiSeason)}期间最为顺利`;
+    yingqi.periods = tiSeason.months;
+
+    direction.summary = `四方皆吉，${tiDirection}（体卦方）最佳`;
+    direction.detail = `主吉方：${tiDirection}（${tiDirInfo.description}）；体用同气，四方皆可，${tiDirection}最旺`;
+    direction.lucky = [tiDirection];
+    direction.avoid = [];
+  }
+
+  // ---- 人物：基于用卦所代表的人物 ----
+  const yp = PERSON_MAP[yongTri.name] || PERSON_MAP[tiTri.name];
+
+  if (rel.type === 'yongShengTi') {
     person.summary = `得${yp.role}相助`;
     person.detail = `此人性情${yp.personality}，相貌${yp.appearance}，对你有助益`;
-    person.role = yp.role;
-    person.personality = yp.personality;
-    person.strategy = yp.strategy;
-    person.warning = '';
-    
+    person.role = yp.role; person.personality = yp.personality;
+    person.strategy = yp.strategy; person.warning = '';
   } else if (rel.type === 'tiKeYong') {
-    const ts = SEASON_MAP[tiElem];
-    yingqi.summary = `${ts.season}克制用卦，事可成`;
-    yingqi.detail = `${ts.season}（${ts.months.join('、')}）克制用卦最为有利，逢${ts.days.join('、')}之日可主动出击，${ts.hours.join('、')}时机最佳`;
-    yingqi.timing = `宜在${ts.months[0]}至${ts.months[ts.months.length-1]}期间积极行动，${ts.hours[0]}行事可压制对方`;
-    yingqi.periods = ts.months;
-    
-    const td = DIRECTION_MAP[tiElem];
-    const yd = DIRECTION_MAP[yongElem];
-    direction.summary = `宜向${td.main}，增强克制之力`;
-    direction.detail = `主攻方：${td.main}（${td.geomancy}）；不宜：${yd.main}，恐遭反制`;
-    direction.lucky = [td.main, ...td.sub];
-    direction.avoid = [yd.main];
-    
-    const yp = PERSON_MAP[yongTri.name];
     person.summary = `可制${yp.role}`;
     person.detail = `此人性情${yp.personality}，你可与之抗衡，但须自身强健`;
-    person.role = yp.role;
-    person.personality = yp.personality;
+    person.role = yp.role; person.personality = yp.personality;
     person.strategy = '须自身刚健，不畏强势，以正克邪';
     person.warning = '不可轻敌，宜谨慎应对';
-    
   } else if (rel.type === 'yongKeTi') {
-    const ts = SEASON_MAP[tiElem];
-    yingqi.summary = `${ts.season}或逢克制用卦之时，方有转机`;
-    yingqi.detail = `用卦克体，当前不利。宜静守待时，待${ts.season}（${ts.months.join('、')}）体卦得势，或逢克制用卦之时（${SEASON_MAP[ELEM_CTRL[yongElem]]?.season || '待观'}）方有转机`;
-    yingqi.timing = `宜退不宜进，待${ts.months[0]}后再图进取`;
-    yingqi.periods = ts.months;
-    
-    const td = DIRECTION_MAP[tiElem];
-    const yd = DIRECTION_MAP[yongElem];
-    direction.summary = `宜向${td.main}，自保为先`;
-    direction.detail = `避凶方：${td.main}，增强自身气运；忌：${yd.main}，恐遭其害`;
-    direction.lucky = [td.main, ...td.sub];
-    direction.avoid = [yd.main];
-    
-    const yp = PERSON_MAP[yongTri.name];
     person.summary = `需防${yp.role}之阻`;
     person.detail = `此人性情${yp.personality}，可能成为阻碍，需谨慎应对`;
-    person.role = yp.role;
-    person.personality = yp.personality;
+    person.role = yp.role; person.personality = yp.personality;
     person.strategy = yp.warning;
     person.warning = '不可轻易相信，宜保持距离';
-    
   } else if (rel.type === 'tiShengYong') {
-    const ys = SEASON_MAP[yongElem];
-    yingqi.summary = `${ys.season}耗尽之后，方得休养`;
-    yingqi.detail = `体生用者，元气外泄，需付出代价。${ys.season}（${ys.months.join('、')}）耗尽之后方可休养，逢${SEASON_MAP[tiElem].days.join('、')}之日可补充元气`;
-    yingqi.timing = `前期需多付出，${ys.months[ys.months.length-1]}后渐入佳境`;
-    yingqi.periods = ys.months;
-    
-    const td = DIRECTION_MAP[tiElem];
-    direction.summary = `宜向${td.main}，补充元气`;
-    direction.detail = `休养方：${td.main}（${td.geomancy}）；耗散方：${DIRECTION_MAP[yongElem].main}，宜少往`;
-    direction.lucky = [td.main, ...td.sub];
-    direction.avoid = [DIRECTION_MAP[yongElem].main];
-    
-    const yp = PERSON_MAP[yongTri.name];
     person.summary = `需施予${yp.role}`;
     person.detail = `此人性情${yp.personality}，你需付出方能维系关系`;
-    person.role = yp.role;
-    person.personality = yp.personality;
+    person.role = yp.role; person.personality = yp.personality;
     person.strategy = '量力而行，不可过度付出';
     person.warning = '恐有损耗，宜适可而止';
-    
   } else {
-    const ts = SEASON_MAP[tiElem];
-    yingqi.summary = `${ts.season}或逢相合之时，事可顺遂`;
-    yingqi.detail = `体用比和，事多顺遂。${ts.season}（${ts.months.join('、')}）为旺相之时，逢${ts.days.join('、')}之日更为有利`;
-    yingqi.timing = `${ts.months[0]}至${ts.months[ts.months.length-1]}期间最为顺利`;
-    yingqi.periods = ts.months;
-    
-    const td = DIRECTION_MAP[tiElem];
-    direction.summary = `四方皆吉，${td.main}最佳`;
-    direction.detail = `主吉方：${td.main}（${td.geomancy}，${td.position}）；体用同气，四方皆可，${td.main}最旺`;
-    direction.lucky = [td.main, ...td.sub];
-    direction.avoid = [];
-    
-    const tp2 = PERSON_MAP[tiTri.name];
+    const tp2 = PERSON_MAP[tiTri.name] || yp;
     person.summary = `得同类相助`;
     person.detail = `宜结交${tp2.role}，其人${tp2.personality}，与你气性相合，彼此互助`;
-    person.role = tp2.role;
-    person.personality = tp2.personality;
-    person.strategy = '真诚相待，平等互惠';
-    person.warning = '';
+    person.role = tp2.role; person.personality = tp2.personality;
+    person.strategy = '真诚相待，平等互惠'; person.warning = '';
   }
-  
-  // 统一生成四个维度的应期详解（年/月/日/时辰）
-  const tiSeasonData = SEASON_MAP[tiElem];
-  const yongSeasonData = SEASON_MAP[yongElem];
-  const ctrlElem = ELEM_CTRL[yongElem]; // 克制用卦的五行
-  const ctrlSeasonData = SEASON_MAP[ctrlElem];
 
-  // 根据体用关系确定"旺时"和"忌时"
-  let wangSeason, wangReason, jiSeason, jiReason;
-  if (rel.type === 'yongShengTi') {
-    wangSeason = yongSeasonData; wangReason = `用卦${yongTri.name}（${yongElem}）生体，${yongSeasonData.season}用卦旺而生体有力`;
-    jiSeason = SEASON_MAP[ELEM_CTRL[tiElem]]; jiReason = `${SEASON_MAP[ELEM_CTRL[tiElem]].season}体卦受克，宜避`;
-  } else if (rel.type === 'tiKeYong') {
-    wangSeason = tiSeasonData; wangReason = `体卦${tiTri.name}（${tiElem}）克用，${tiSeasonData.season}体卦旺而克用有力`;
-    jiSeason = yongSeasonData; jiReason = `${yongSeasonData.season}用卦旺而反制，宜避`;
-  } else if (rel.type === 'yongKeTi') {
-    wangSeason = tiSeasonData; wangReason = `用卦克体，待${tiSeasonData.season}体卦旺相方有转机`;
-    jiSeason = yongSeasonData; jiReason = `${yongSeasonData.season}用卦旺而克体更甚，切忌`;
-  } else if (rel.type === 'tiShengYong') {
-    wangSeason = tiSeasonData; wangReason = `体生用而耗，${tiSeasonData.season}体卦旺可补耗`;
-    jiSeason = yongSeasonData; jiReason = `${yongSeasonData.season}用卦旺而耗体更甚，宜避`;
-  } else {
-    wangSeason = tiSeasonData; wangReason = `体用比和，${tiSeasonData.season}同气旺相，事最顺`;
-    jiSeason = SEASON_MAP[ELEM_CTRL[tiElem]]; jiReason = `${SEASON_MAP[ELEM_CTRL[tiElem]].season}克体，虽比和亦宜避`;
-  }
+  // ---- 四个维度的应期详解（年/月/日/时辰）----
+  const actList = vocab.act.split('、');
+  const jiMonthsFmt = fmtMonths(jiSeason);
+  const wangMonthsFmt = fmtMonths(wangSeason);
 
   yingqi.dimensions = {
     year: {
       label: '年',
       title: '年应期',
-      content: `${vocab.occasion}大利之年：逢${wangSeason.season}旺相之年（${wangSeason.months.join('、')}所属之年），${wangReason}。流年地支与体卦${tiTri.name}（${tiElem}）相生或比和者，${vocab.occasion}事多顺遂。`,
-      action: `今年若属${wangSeason.season}，宜${vocab.act.split('、')[0]}、${vocab.act.split('、')[1]}；若属${jiSeason.season}（${jiReason}），宜静守观望，待来年转机再图${vocab.best}。`,
+      content: `${vocab.occasion}大利之年：逢${wangSeason.season}旺相之年（${wangMonthsFmt}所属之年），${wangReason}。流年地支与体卦${tiTri.name}（${tiElem}）相生或比和者，${vocab.occasion}事多顺遂。`,
+      action: `今年若属${wangSeason.season}，宜${actList[0]}、${actList[1]}；若属${jiSeason.season}（${jiReason}），宜静守观望，待来年转机再图${vocab.best}。`,
       best: `${wangSeason.season}旺年`,
     },
     month: {
       label: '月',
       title: '月应期',
-      content: `${vocab.occasion}大利之月：${wangSeason.months.join('、')}（${wangSeason.season}），${wangReason}，此数月内${vocab.act.split('、')[0]}最为得力。`,
-      action: `宜在${wangSeason.months[0]}至${wangSeason.months[wangSeason.months.length-1]}期间重点推进${vocab.best}；${jiSeason.months.join('、')}（${jiReason}）宜收敛守持，暂缓${vocab.act.split('、')[0]}。`,
-      best: `${wangSeason.months.join('、')}`,
+      content: `${vocab.occasion}大利之月：${wangMonthsFmt}（${wangSeason.season}），${wangReason}，此数月内${actList[0]}最为得力。`,
+      action: `宜在${wangMonthsFmt}期间重点推进${vocab.best}；${jiMonthsFmt}（${jiReason}）宜收敛守持，暂缓${actList[0]}。`,
+      best: wangMonthsFmt,
     },
     day: {
       label: '日',
       title: '日应期',
-      content: `${vocab.occasion}大利之日：逢${wangSeason.days.join('、')}之日（天干地支与体卦${tiElem}同气或相生），${vocab.act.split('、')[0]}事半功倍。`,
-      action: `若欲${vocab.best}，宜择${wangSeason.days[0]}或${wangSeason.days[1]}之日；忌${jiSeason.days.join('、')}之日（${jiReason}），不宜${vocab.act.split('、')[0]}。`,
+      content: `${vocab.occasion}大利之日：逢${wangSeason.days.join('、')}之日（天干地支与体卦${tiElem}同气或相生），${actList[0]}事半功倍。`,
+      action: `若欲${vocab.best}，宜择${wangSeason.days[0]}或${wangSeason.days[1]}之日；忌${jiSeason.days.join('、')}之日（${jiReason}），不宜${actList[0]}。`,
       best: `${wangSeason.days.join('、')}之日`,
     },
     hour: {
       label: '时',
       title: '时辰应期',
-      content: `${vocab.occasion}大利之时：${wangSeason.hours.join('、')}（${wangSeason.season}旺时），${wangReason}，此时辰${vocab.act.split('、')[0]}气运最旺。`,
-      action: `每日${wangSeason.hours.join('、')}为最佳${vocab.best}时段，宜在此时做关键决策或重要${vocab.act.split('、')[0]}；${jiSeason.hours.join('、')}（${jiReason}）宜静守，不宜${vocab.act.split('、')[0]}。`,
-      best: `${wangSeason.hours.join('、')}`,
+      content: `${vocab.occasion}大利之时：${wangSeason.hours.join('、')}（${wangSeason.season}旺时），${wangReason}，此时辰${actList[0]}气运最旺。`,
+      action: `每日${wangSeason.hours.join('、')}为最佳${vocab.best}时段，宜在此时做关键决策或重要${actList[0]}；${jiSeason.hours.join('、')}（${jiReason}）宜静守，不宜${actList[0]}。`,
+      best: wangSeason.hours.join('、'),
     },
   };
 
@@ -1017,7 +1003,7 @@ function targetedAnalysis(reading, questionType) {
   const tiSubDirs = tiDir.sub.join('、') || '中央';
   // 体用同方位时（比和），次吉方作为调整方向，避免"转向X又避开X"的矛盾
   const adjustDir = (tiDir.main === yongDir.main) ? (tiDir.sub[0] || yongDir.sub[0] || '他方') : tiDir.main;
-  const avoidDir = (tiDir.main === yongDir.main) ? dirOf(ELEM_CTRL[yongElem]).main : yongDir.main;
+  const avoidDir = (tiDir.main === yongDir.main) ? dirOf(ELEM_CTRLLED_BY[yongElem]).main : yongDir.main;
 
   const typeConfigs = {
     career: {
